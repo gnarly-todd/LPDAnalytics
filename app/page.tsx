@@ -12,7 +12,12 @@ import {
   statusBenchmarks as communityStatusBenchmarks,
 } from "./data";
 const SOURCE_URL = "https://lpubelts.com/#/profile/84dULJFIN4bHIC1LxCiuvBCSqT43?name=todd";
-const HOSTED_SITE_ORIGIN = "https://todd-lock-analytics.nicelife70117.chatgpt.site";
+const LPU_USER_API = "https://explore.lpubelts.com/services/api/v1/users";
+const LPU_FIRESTORE_DOCUMENTS =
+  "https://firestore.googleapis.com/v1/projects/lpu-belt-explorer/databases/(default)/documents/lockcollections";
+const LPU_PUBLIC_API_KEY = "AIzaSyDGGErdOp0lpzUumA60xJO7BlQr027y9Vo";
+const LPU_DATA_URL =
+  "https://raw.githubusercontent.com/Lockpickers-United/lpu-belt-explorer/main/src/data/data.json";
 const LPU_STATS_URL = "https://lpubelts.com/#/stats";
 const LPU_STATS_SNAPSHOT = "September 2, 2026";
 const DEFAULT_PROFILE_ID = "84dULJFIN4bHIC1LxCiuvBCSqT43";
@@ -70,6 +75,24 @@ type LoadedProfile = {
 type LpuProfileApiResult = {
   profile?: LoadedProfile;
   message?: string;
+};
+
+type LpuUserResponse = {
+  data?: {
+    userId?: string;
+    displayName?: string;
+    collections?: { own?: unknown; wishlist?: unknown; picked?: unknown };
+  };
+};
+
+type FirestoreValue = { stringValue?: string; arrayValue?: { values?: FirestoreValue[] } };
+type FirestoreProfileDocument = { fields?: Record<string, FirestoreValue> };
+type LpuCatalogEntry = {
+  id: string;
+  belt: string;
+  version?: string;
+  lockingMechanisms?: string[];
+  makeModels: { make?: string; model?: string }[];
 };
 
 type SavedProfile = Pick<LoadedProfile, "id" | "name" | "url"> & { isDefault: boolean };
@@ -211,42 +234,92 @@ function isValidLpuProfileUrl(value: string) {
   }
 }
 
-function fetchLpuProfileFromGithubPages(profileUrl: string): Promise<LoadedProfile> {
-  return new Promise((resolve, reject) => {
-    const callbackName = `__lpuProfile_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const callbackHost = window as unknown as Record<string, unknown>;
-    const script = document.createElement("script");
-    const requestUrl = new URL("/api/lpu-profile", HOSTED_SITE_ORIGIN);
-    requestUrl.searchParams.set("url", profileUrl);
-    requestUrl.searchParams.set("callback", callbackName);
+function stringIds(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
 
-    let settled = false;
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      script.remove();
-      delete callbackHost[callbackName];
-    };
-    const finish = (result: LpuProfileApiResult | null) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      if (!result?.profile) {
-        reject(new Error(result?.message || "That LPU profile could not be loaded."));
-        return;
-      }
-      resolve(result.profile);
-    };
-    const timeoutId = window.setTimeout(() => {
-      finish({ message: "The profile request timed out. Please try again." });
-    }, 20_000);
+function firestoreStringIds(fields: Record<string, FirestoreValue>, name: string) {
+  return (fields[name]?.arrayValue?.values ?? [])
+    .map((value) => value.stringValue)
+    .filter((value): value is string => typeof value === "string");
+}
 
-    callbackHost[callbackName] = (result: LpuProfileApiResult) => finish(result);
-    script.async = true;
-    script.src = requestUrl.toString();
-    script.onerror = () =>
-      finish({ message: "The profile service could not be reached. Please try again." });
-    document.head.appendChild(script);
-  });
+function normalizeBelt(belt: string): { belt: Belt; beltLevel?: LockRecord["beltLevel"] } {
+  if (/^Black [1-5]$/.test(belt)) return { belt: "Black", beltLevel: belt as LockRecord["beltLevel"] };
+  return { belt: beltOrder.includes(belt as Belt) ? (belt as Belt) : "Unranked" };
+}
+
+async function fetchLpuProfileFromGithubPages(profileUrl: string): Promise<LoadedProfile> {
+  const parsed = new URL(profileUrl);
+  const match = parsed.hash.match(/^#\/profile\/([A-Za-z0-9_-]{20,128})(?:\?.*)?$/);
+  if (!match) throw new Error("Enter a complete public LPU profile link.");
+  const profileId = match[1];
+
+  let profile: LpuUserResponse;
+  try {
+    const response = await fetch(`${LPU_USER_API}/${encodeURIComponent(profileId)}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (response.ok) profile = (await response.json()) as LpuUserResponse;
+    else if (![429, 500, 502, 503, 504].includes(response.status))
+      throw new Error("That LPU profile does not exist or is not public.");
+    else throw new Error("Use profile fallback");
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("does not exist")) throw error;
+    const response = await fetch(
+      `${LPU_FIRESTORE_DOCUMENTS}/${encodeURIComponent(profileId)}?key=${LPU_PUBLIC_API_KEY}`,
+      { headers: { Accept: "application/json" }, cache: "no-store" },
+    );
+    if (!response.ok) throw new Error("LPU profile data could not be loaded. Please try again.");
+    const document = (await response.json()) as FirestoreProfileDocument;
+    if (!document.fields) throw new Error("LPU profile data could not be loaded. Please try again.");
+    profile = {
+      data: {
+        userId: profileId,
+        displayName: document.fields.displayName?.stringValue,
+        collections: {
+          own: firestoreStringIds(document.fields, "own"),
+          wishlist: firestoreStringIds(document.fields, "wishlist"),
+          picked: firestoreStringIds(document.fields, "picked"),
+        },
+      },
+    };
+  }
+
+  if (profile.data?.userId !== profileId) throw new Error("LPU profile data did not match the requested profile.");
+  const collections = profile.data.collections;
+  const ownedIds = stringIds(collections?.own);
+  const wishlistIds = stringIds(collections?.wishlist);
+  const ownedSet = new Set(ownedIds);
+  const pickedIds = new Set(stringIds(collections?.picked).filter((id) => ownedSet.has(id)));
+  const selectedIds = new Set([...ownedIds, ...wishlistIds]);
+  const catalogResponse = await fetch(LPU_DATA_URL, { cache: "force-cache" });
+  if (!catalogResponse.ok) throw new Error("The LPU lock catalog could not be loaded. Please try again.");
+  const catalog = (await catalogResponse.json()) as LpuCatalogEntry[];
+  const selected = catalog.filter((entry) => selectedIds.has(entry.id));
+  if (selected.length !== selectedIds.size) throw new Error("The profile references locks missing from the LPU catalog.");
+
+  const fallbackName = new URLSearchParams(parsed.hash.split("?")[1] || "").get("name")?.trim();
+  return {
+    id: profileId,
+    name: profile.data.displayName?.trim() || fallbackName || "LPU profile",
+    url: `https://lpubelts.com/#/profile/${profileId}`,
+    refreshedAt: formatNewYorkSnapshot(),
+    locks: selected.map((entry) => ({
+      id: entry.id,
+      name: entry.makeModels
+        .map(({ make, model }) => [make, model].filter(Boolean).join(" ").trim())
+        .filter(Boolean)
+        .join(" / "),
+      ...(entry.version ? { version: entry.version } : {}),
+      mechanisms: entry.lockingMechanisms ?? [],
+      ...normalizeBelt(entry.belt),
+      status: ownedSet.has(entry.id) ? "Owned" : "Wishlist",
+      picked: pickedIds.has(entry.id),
+      resourceLinks: { lpu: `https://lpubelts.com/locks/${entry.id}.html` },
+    })),
+  };
 }
 
 async function fetchLpuProfile(profileUrl: string): Promise<LoadedProfile> {
