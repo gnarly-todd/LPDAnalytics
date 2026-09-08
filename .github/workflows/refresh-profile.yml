@@ -1,0 +1,140 @@
+name: Refresh LPU profile data
+
+on:
+  schedule:
+    # GitHub may delay jobs scheduled at the top of an hour. Check four times per hour
+    # and use the actual New York time below to run exactly once during the 8 AM hour.
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: refresh-lpu-profile
+  cancel-in-progress: false
+
+jobs:
+  schedule-gate:
+    name: Check New York refresh time
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.time.outputs.should_run }}
+    steps:
+      - name: Check out the current snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: app/data.ts
+
+      - name: Continue once during the 8 AM New York hour or for a manual refresh
+        id: time
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT_NAME" != "schedule" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          current_hour="$(TZ=America/New_York date +%H)"
+          today="$(TZ=America/New_York date '+%B %-d, %Y')"
+          snapshot="$(sed -n 's/^export const profileSnapshotDate = "\(.*\)";$/\1/p' app/data.ts)"
+
+          if [[ "$current_hour" == "08" && "$snapshot" != "$today"* ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  refresh:
+    name: Refresh, validate, and package
+    needs: schedule-gate
+    if: needs.schedule-gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh Todd's LPU profile
+        run: npm run refresh:data
+
+      - name: Format generated data
+        run: npm run format -- app/data.ts
+
+      - name: Validate source
+        run: npm run lint
+
+      - name: Build GitHub Pages site
+        run: npm run build:pages
+        env:
+          GITHUB_PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+
+      - name: Verify Pages output
+        shell: bash
+        run: |
+          test -f dist-pages/index.html
+          cp dist-pages/index.html dist-pages/404.html
+          touch dist-pages/.nojekyll
+
+      - name: Commit refreshed data
+        id: commit
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if git diff --quiet -- app/data.ts; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "LPU profile data is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/data.ts
+          git commit -m "Refresh LPU profile data"
+          git push origin "HEAD:${DEFAULT_BRANCH}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Upload GitHub Pages artifact
+        if: steps.commit.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist-pages
+
+  deploy:
+    name: Deploy refreshed site
+    if: needs.refresh.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
