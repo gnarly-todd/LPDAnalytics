@@ -3,7 +3,7 @@ import { requireChatGPTUser } from "../chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 
-const GITHUB_PAGES_URL = "https://gnarly-todd.github.io/LPUProfileData/";
+const GITHUB_PAGES_URL = "https://gnarly-todd.github.io/LPDAnalytics/";
 
 type RefreshDestination = "site" | "github-pages";
 type RefreshResult = "queued" | "error" | "forbidden";
@@ -25,7 +25,7 @@ async function RefreshRunner({ destination }: { destination: RefreshDestination 
   }
 
   const token = process.env.GITHUB_TOKEN;
-  const repository = process.env.GITHUB_REPOSITORY || "gnarly-todd/LPUProfileData";
+  const repository = process.env.GITHUB_REPOSITORY || "gnarly-todd/LPDAnalytics";
   const workflow = process.env.GITHUB_WORKFLOW || "refresh-profile.yml";
   const ref = process.env.GITHUB_REF || "main";
 

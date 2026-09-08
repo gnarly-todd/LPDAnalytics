@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   }
 
   const token = process.env.GITHUB_TOKEN;
-  const repository = process.env.GITHUB_REPOSITORY || "gnarly-todd/LPUProfileData";
+  const repository = process.env.GITHUB_REPOSITORY || "gnarly-todd/LPDAnalytics";
   if (!token) return json({ message: "Refresh status is not configured." }, 503, origin);
 
   const response = await fetch(`https://api.github.com/repos/${repository}/actions/runs/${runId}`, {

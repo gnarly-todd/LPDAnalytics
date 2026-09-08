@@ -1,5 +1,5 @@
 const GITHUB_PAGES_ORIGIN = "https://gnarly-todd.github.io";
-const GITHUB_PAGES_URL = "https://gnarly-todd.github.io/LPUProfileData/";
+const GITHUB_PAGES_URL = "https://gnarly-todd.github.io/LPDAnalytics/";
 
 const corsHeaders = (origin: string | null) =>
   origin === GITHUB_PAGES_ORIGIN
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   }
 
   const token = process.env.GITHUB_TOKEN;
-  const repository = process.env.GITHUB_REPOSITORY || "gnarly-todd/LPUProfileData";
+  const repository = process.env.GITHUB_REPOSITORY || "gnarly-todd/LPDAnalytics";
   const workflow = process.env.GITHUB_WORKFLOW || "refresh-profile.yml";
   const ref = process.env.GITHUB_REF || "main";
 
