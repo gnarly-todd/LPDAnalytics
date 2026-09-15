@@ -24,7 +24,7 @@ export type LockRecord = {
   };
 };
 
-export const profileSnapshotDate = "September 12, 2026 · 8:49 AM EDT";
+export const profileSnapshotDate = "September 15, 2026 · 8:14 AM EDT";
 
 export const beltOrder: Belt[] = [
   "White",
@@ -1125,6 +1125,7 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
   {
     id: "281aa393",
     name: "Kromer Novum",
+    version: "8 levers",
     mechanisms: ["Lever"],
     belt: "Red",
     resourceLinks: {
