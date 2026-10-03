@@ -24,7 +24,7 @@ export type LockRecord = {
   };
 };
 
-export const profileSnapshotDate = "September 15, 2026 · 8:14 AM EDT";
+export const profileSnapshotDate = "October 3, 2026 · 8:37 AM EDT";
 
 export const beltOrder: Belt[] = [
   "White",
@@ -248,7 +248,7 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
   },
   {
     id: "2484ce70",
-    name: "ABUS EC 75/30 / ABUS 34/55 Strada",
+    name: "ABUS EC 75/30 / ABUS 75IB/30 / ABUS 34/55 Strada",
     mechanisms: ["Dimple"],
     belt: "Green",
     resourceLinks: {
@@ -426,16 +426,6 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
-    id: "b89d9e11",
-    name: "ASSA 500 / Ruko 500",
-    version: "with barrel drivers, no countermilling",
-    mechanisms: ["Pin-tumbler"],
-    belt: "Blue",
-    resourceLinks: {
-      lpu: "https://lpubelts.com/locks/b89d9e11.html",
-    },
-  },
-  {
     id: "d08aa492",
     name: "ASSA 700",
     version: "7 pin with spools and no countermilling",
@@ -453,15 +443,6 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Blue",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/f1e92541.html",
-    },
-  },
-  {
-    id: "1bee7a66",
-    name: "ASSA R502",
-    mechanisms: ["Pin-tumbler"],
-    belt: "Blue",
-    resourceLinks: {
-      lpu: "https://lpubelts.com/locks/1bee7a66.html",
     },
   },
   {
@@ -1090,6 +1071,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Red",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/29ab2852.html",
+    },
+  },
+  {
+    id: "ef4e0295",
+    name: "ASSA 700 / Ruko 700",
+    version: "with gin drivers and matched sleeve",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/ef4e0295.html",
     },
   },
   {
