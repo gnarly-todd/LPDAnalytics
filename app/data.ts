@@ -24,7 +24,7 @@ export type LockRecord = {
   };
 };
 
-export const profileSnapshotDate = "October 3, 2026 · 8:37 AM EDT";
+export const profileSnapshotDate = "October 5, 2026 · 8:43 AM EDT";
 
 export const beltOrder: Belt[] = [
   "White",
