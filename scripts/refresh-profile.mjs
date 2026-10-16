@@ -2,12 +2,6 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const PROFILE_ID = "84dULJFIN4bHIC1LxCiuvBCSqT43";
 const LPU_USER_API = "https://explore.lpubelts.com/services/api/v1/users";
-const LPU_FIRESTORE_DOCUMENTS =
-  "https://firestore.googleapis.com/v1/projects/lpu-belt-explorer/databases/(default)/documents/lockcollections";
-// Public key used by LPU's own profile page. This refresh reads only Todd's
-// known profile document as an API-failure fallback; it never lists or queries
-// collections of users.
-const LPU_PUBLIC_API_KEY = "AIzaSyDGGErdOp0lpzUumA60xJO7BlQr027y9Vo";
 const LPU_DATA =
   "https://raw.githubusercontent.com/Lockpickers-United/lpu-belt-explorer/main/src/data/data.json";
 const DATA_FILE = new URL("../app/data.ts", import.meta.url);
@@ -22,56 +16,6 @@ async function getText(url) {
 
 async function getJson(url) {
   return JSON.parse(await getText(url));
-}
-
-function firestoreStringArray(fields, field) {
-  return (fields?.[field]?.arrayValue?.values ?? [])
-    .map((value) => value.stringValue)
-    .filter((value) => typeof value === "string");
-}
-
-async function getProfileFromFirestore() {
-  const response = await fetch(
-    `${LPU_FIRESTORE_DOCUMENTS}/${encodeURIComponent(PROFILE_ID)}?key=${LPU_PUBLIC_API_KEY}`,
-    { headers: { Accept: "application/json" }, cache: "no-store" },
-  );
-  if (!response.ok) {
-    throw new Error(`LPU profile fallback request failed (${response.status}).`);
-  }
-
-  const document = await response.json();
-  if (!document.fields) throw new Error("LPU profile fallback response is missing fields.");
-
-  return {
-    data: {
-      userId: PROFILE_ID,
-      displayName: document.fields.displayName?.stringValue,
-      collections: {
-        own: firestoreStringArray(document.fields, "own"),
-        wishlist: firestoreStringArray(document.fields, "wishlist"),
-        picked: firestoreStringArray(document.fields, "picked"),
-      },
-    },
-  };
-}
-
-async function getProfile() {
-  try {
-    const response = await fetch(`${LPU_USER_API}/${encodeURIComponent(PROFILE_ID)}`, {
-      headers: { "user-agent": "todd-lock-analytics-refresh/1.0" },
-      cache: "no-store",
-    });
-    if (response.ok) return response.json();
-    if (response.status === 404) {
-      throw new Error("LPU profile response did not match the configured user.");
-    }
-    console.warn(`LPU user API failed (${response.status}); using Todd's public profile fallback.`);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("did not match")) throw error;
-    console.warn("LPU user API could not be reached; using Todd's public profile fallback.");
-  }
-
-  return getProfileFromFirestore();
 }
 
 function collectionStrings(value) {
@@ -95,7 +39,8 @@ function resourceLinks(entry) {
   };
 }
 
-const [profile, allEntries] = await Promise.all([getProfile(), getJson(LPU_DATA)]);
+const profileUrl = `${LPU_USER_API}/${encodeURIComponent(PROFILE_ID)}`;
+const [profile, allEntries] = await Promise.all([getJson(profileUrl), getJson(LPU_DATA)]);
 
 if (profile.data?.userId !== PROFILE_ID) {
   throw new Error("LPU profile response did not match the configured user.");

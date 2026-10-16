@@ -1,5 +1,10 @@
 "use client";
 
+import WishlistOwnerTable from "./wishlist-owner-table";
+import ProfileNameInput from "./profile-name-input";
+import { checkLpuBudget, fetchLpuUser, LpuRateLimitError, recordLpuCooldown, retryAtFromHeaders, readProfileCache, writeProfileCache, removeProfileCache } from "./lpu-request";
+import "./wishlist-owner-table.css";
+
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Belt,
@@ -11,11 +16,8 @@ import {
   progression,
   statusBenchmarks as communityStatusBenchmarks,
 } from "./data";
+const HOSTED_SITE_ORIGIN = "https://todd-lock-analytics.nicelife70117.chatgpt.site";
 const SOURCE_URL = "https://lpubelts.com/#/profile/84dULJFIN4bHIC1LxCiuvBCSqT43?name=todd";
-const LPU_USER_API = "https://explore.lpubelts.com/services/api/v1/users";
-const LPU_FIRESTORE_DOCUMENTS =
-  "https://firestore.googleapis.com/v1/projects/lpu-belt-explorer/databases/(default)/documents/lockcollections";
-const LPU_PUBLIC_API_KEY = "AIzaSyDGGErdOp0lpzUumA60xJO7BlQr027y9Vo";
 const LPU_DATA_URL =
   "https://raw.githubusercontent.com/Lockpickers-United/lpu-belt-explorer/main/src/data/data.json";
 const LPU_STATS_URL = "https://lpubelts.com/#/stats";
@@ -75,6 +77,7 @@ type LoadedProfile = {
 type LpuProfileApiResult = {
   profile?: LoadedProfile;
   message?: string;
+  retryAt?: number;
 };
 
 type LpuUserResponse = {
@@ -85,8 +88,6 @@ type LpuUserResponse = {
   };
 };
 
-type FirestoreValue = { stringValue?: string; arrayValue?: { values?: FirestoreValue[] } };
-type FirestoreProfileDocument = { fields?: Record<string, FirestoreValue> };
 type LpuCatalogEntry = {
   id: string;
   belt: string;
@@ -238,12 +239,6 @@ function stringIds(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
-function firestoreStringIds(fields: Record<string, FirestoreValue>, name: string) {
-  return (fields[name]?.arrayValue?.values ?? [])
-    .map((value) => value.stringValue)
-    .filter((value): value is string => typeof value === "string");
-}
-
 function normalizeBelt(belt: string): { belt: Belt; beltLevel?: LockRecord["beltLevel"] } {
   if (/^Black [1-5]$/.test(belt)) return { belt: "Black", beltLevel: belt as LockRecord["beltLevel"] };
   return { belt: beltOrder.includes(belt as Belt) ? (belt as Belt) : "Unranked" };
@@ -255,46 +250,22 @@ async function fetchLpuProfileFromGithubPages(profileUrl: string): Promise<Loade
   if (!match) throw new Error("Enter a complete public LPU profile link.");
   const profileId = match[1];
 
-  let profile: LpuUserResponse;
-  try {
-    const response = await fetch(`${LPU_USER_API}/${encodeURIComponent(profileId)}`, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    if (response.ok) profile = (await response.json()) as LpuUserResponse;
-    else if (![429, 500, 502, 503, 504].includes(response.status))
-      throw new Error("That LPU profile does not exist or is not public.");
-    else throw new Error("Use profile fallback");
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("does not exist")) throw error;
-    const response = await fetch(
-      `${LPU_FIRESTORE_DOCUMENTS}/${encodeURIComponent(profileId)}?key=${LPU_PUBLIC_API_KEY}`,
-      { headers: { Accept: "application/json" }, cache: "no-store" },
-    );
-    if (!response.ok) throw new Error("LPU profile data could not be loaded. Please try again.");
-    const document = (await response.json()) as FirestoreProfileDocument;
-    if (!document.fields) throw new Error("LPU profile data could not be loaded. Please try again.");
-    profile = {
-      data: {
-        userId: profileId,
-        displayName: document.fields.displayName?.stringValue,
-        collections: {
-          own: firestoreStringIds(document.fields, "own"),
-          wishlist: firestoreStringIds(document.fields, "wishlist"),
-          picked: firestoreStringIds(document.fields, "picked"),
-        },
-      },
-    };
-  }
+  const response = await fetchLpuUser(profileId);
+
+  if (response?.status === 404) throw new Error("That LPU profile does not exist or is not public.");
+  if (!response?.ok) throw new Error("LPU profile data could not be loaded. Please try again.");
+  const profile = (await response.json()) as LpuUserResponse;
 
   if (profile.data?.userId !== profileId) throw new Error("LPU profile data did not match the requested profile.");
   const collections = profile.data.collections;
-  const ownedIds = stringIds(collections?.own);
+  if (!Array.isArray(collections?.own) || !Array.isArray(collections?.wishlist) || !Array.isArray(collections?.picked))
+    throw new Error("The LPU API returned incomplete collection data. Your saved snapshot has been kept.");
+  const ownedIds = stringIds(collections.own);
   const wishlistIds = stringIds(collections?.wishlist);
   const ownedSet = new Set(ownedIds);
   const pickedIds = new Set(stringIds(collections?.picked).filter((id) => ownedSet.has(id)));
   const selectedIds = new Set([...ownedIds, ...wishlistIds]);
-  const catalogResponse = await fetch(LPU_DATA_URL, { cache: "force-cache" });
+  const catalogResponse = await fetch(LPU_DATA_URL, { cache: "force-cache", signal: AbortSignal.timeout(20_000) });
   if (!catalogResponse.ok) throw new Error("The LPU lock catalog could not be loaded. Please try again.");
   const catalog = (await catalogResponse.json()) as LpuCatalogEntry[];
   const selected = catalog.filter((entry) => selectedIds.has(entry.id));
@@ -322,40 +293,52 @@ async function fetchLpuProfileFromGithubPages(profileUrl: string): Promise<Loade
   };
 }
 
-async function fetchLpuProfile(profileUrl: string): Promise<LoadedProfile> {
+async function requestLpuProfile(profileUrl: string): Promise<LoadedProfile> {
+  checkLpuBudget();
   if (window.location.hostname.endsWith("github.io")) {
     return fetchLpuProfileFromGithubPages(profileUrl);
   }
 
   const response = await fetch(`/api/lpu-profile?url=${encodeURIComponent(profileUrl)}`, {
     headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(45_000),
   });
   const result = (await response.json().catch(() => null)) as LpuProfileApiResult | null;
 
+  if (response.status === 429 || result?.retryAt) {
+    const retryAt = result?.retryAt || retryAtFromHeaders(response.headers);
+    recordLpuCooldown(retryAt);
+    throw new LpuRateLimitError(retryAt);
+  }
   if (!response.ok || !result?.profile) {
     throw new Error(result?.message || "That LPU profile could not be loaded.");
   }
   return result.profile;
 }
 
-function readCachedProfile(profileId: string) {
-  try {
-    const cached = JSON.parse(
-      window.sessionStorage.getItem(`lpu-profile-${profileId}`) || "null",
-    ) as LoadedProfile | null;
-    return cached?.id === profileId && Array.isArray(cached.locks) ? cached : null;
-  } catch {
-    return null;
+const pendingProfileLoads = new Map<string, Promise<LoadedProfile>>();
+function fetchLpuProfile(profileUrl: string): Promise<LoadedProfile> {
+  const key = new URL(profileUrl).hash.split("?")[0];
+  let pending = pendingProfileLoads.get(key);
+  if (!pending) {
+    pending = requestLpuProfile(profileUrl).then((loaded) => {
+      writeProfileCache(loaded);
+      return loaded;
+    }).finally(() => pendingProfileLoads.delete(key));
+    pendingProfileLoads.set(key, pending);
   }
+  return pending;
+}
+
+function readCachedProfile(profileId: string) {
+  return readProfileCache<LoadedProfile>(profileId);
 }
 
 async function loadSavedProfile(saved: SavedProfile) {
-  if (saved.id === DEFAULT_PROFILE_ID) return defaultProfile;
   const cached = readCachedProfile(saved.id);
   if (cached) return cached;
-  const loaded = await fetchLpuProfile(saved.url);
-  window.sessionStorage.setItem(`lpu-profile-${loaded.id}`, JSON.stringify(loaded));
-  return loaded;
+  if (saved.id === DEFAULT_PROFILE_ID) return defaultProfile;
+  return fetchLpuProfile(saved.url);
 }
 
 const iconPaths: Record<string, React.ReactNode> = {
@@ -1418,6 +1401,8 @@ export default function Home() {
   const [editingProfile, setEditingProfile] = useState<SavedProfile | null>(null);
   const [profileUrlInput, setProfileUrlInput] = useState("");
   const [profileError, setProfileError] = useState("");
+  const [loadNotice, setLoadNotice] = useState("");
+  const [profileSaveMessage, setProfileSaveMessage] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
   const challengeRef = useRef<HTMLElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -1490,33 +1475,28 @@ export default function Home() {
     const selected = profiles.find((item) => item.id === storedActiveId) || defaultSaved;
     window.localStorage.setItem(ACTIVE_PROFILE_KEY, selected.id);
 
-    try {
-      const cached = JSON.parse(
-        window.sessionStorage.getItem(`lpu-profile-${selected.id}`) || "null",
-      ) as LoadedProfile | null;
-      if (cached?.id === selected.id && Array.isArray(cached.locks)) {
-        setActiveProfile(cached);
-        setDisplayedSnapshotDate(cached.refreshedAt);
-        return;
-      }
-    } catch {
-      // A malformed cache should simply be replaced by the public profile response.
+    const cached = readCachedProfile(selected.id);
+    if (cached) {
+      setActiveProfile(cached);
+      setDisplayedSnapshotDate(cached.refreshedAt);
+      setLoadNotice("Showing your saved profile snapshot. Use Refresh profile to request the latest data.");
+      return;
     }
+    setActiveProfile(selected.id === DEFAULT_PROFILE_ID ? defaultProfile : { ...selected, locks: [], refreshedAt: "Not loaded" });
+    setDisplayedSnapshotDate(selected.id === DEFAULT_PROFILE_ID ? profileSnapshotDate : "Not loaded");
 
     setProfileLoading(true);
     void fetchLpuProfile(selected.url)
       .then((loaded) => {
         setActiveProfile(loaded);
         setDisplayedSnapshotDate(loaded.refreshedAt);
-        window.sessionStorage.setItem(`lpu-profile-${loaded.id}`, JSON.stringify(loaded));
+        writeProfileCache(loaded);
       })
       .catch((error: unknown) => {
         setProfileError(
           error instanceof Error ? error.message : "This profile could not be loaded.",
         );
-        window.localStorage.setItem(ACTIVE_PROFILE_KEY, DEFAULT_PROFILE_ID);
-        setActiveProfile(defaultProfile);
-        setDisplayedSnapshotDate(profileSnapshotDate);
+        setLoadNotice(error instanceof Error ? error.message : "This profile could not be loaded. Try Refresh profile again.");
       })
       .finally(() => setProfileLoading(false));
   }, []);
@@ -1707,9 +1687,10 @@ export default function Home() {
     setRefreshMessage(`Refreshing ${profile.name} from LPU…`);
     try {
       const loaded = await fetchLpuProfile(profile.url);
-      window.sessionStorage.setItem(`lpu-profile-${loaded.id}`, JSON.stringify(loaded));
+      writeProfileCache(loaded);
       setActiveProfile(loaded);
       setDisplayedSnapshotDate(loaded.refreshedAt);
+      setLoadNotice("");
       setRefreshState("idle");
       setRefreshMessage("");
     } catch (error) {
@@ -1766,7 +1747,7 @@ export default function Home() {
     const remaining = savedProfiles.filter((item) => item.id !== removed.id);
     setSavedProfiles(remaining);
     saveAddedProfiles(remaining);
-    window.sessionStorage.removeItem(`lpu-profile-${removed.id}`);
+    removeProfileCache(removed.id);
     if (comparisonSelections.includes(removed.id)) {
       window.localStorage.removeItem(COMPARISON_PROFILE_IDS_KEY);
       setComparisonSelections([]);
@@ -1783,6 +1764,7 @@ export default function Home() {
   const openProfileEditor = (selected: SavedProfile | null) => {
     setProfileMenuOpen(false);
     setProfileError("");
+    setProfileSaveMessage("");
     setEditingProfile(selected);
     setProfileUrlInput(selected?.url || "");
     setAddProfileOpen(true);
@@ -1790,10 +1772,15 @@ export default function Home() {
 
   const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const addWithoutViewing = !editingProfile &&
+      submitter instanceof HTMLButtonElement && submitter.value === "add-only";
     setProfileError("");
+    setProfileSaveMessage("");
     if (!isValidLpuProfileUrl(profileUrlInput)) {
       setProfileError(
-        "Enter a complete LPU profile link, such as https://lpubelts.com/#/profile/…?name=…",
+        "Select a matching profile from the name search results, or enter a complete public LPU profile link.",
       );
       return;
     }
@@ -1836,24 +1823,37 @@ export default function Home() {
           }
         }
         if (editingProfile.id !== loaded.id) {
-          window.sessionStorage.removeItem(`lpu-profile-${editingProfile.id}`);
+          removeProfileCache(editingProfile.id);
         }
       } else if (conflict) {
         nextProfiles = savedProfiles.map((item) =>
           item.id === loaded.id ? { ...item, name: loaded.name, url: loaded.url } : item,
         );
-        nextActiveId = loaded.id;
+        nextActiveId = addWithoutViewing ? profile.id : loaded.id;
       } else {
         nextProfiles = [
           ...savedProfiles,
           { id: loaded.id, name: loaded.name, url: loaded.url, isDefault: false },
         ];
-        nextActiveId = loaded.id;
+        nextActiveId = addWithoutViewing ? profile.id : loaded.id;
       }
 
       saveAddedProfiles(nextProfiles);
       window.localStorage.setItem(ACTIVE_PROFILE_KEY, nextActiveId);
-      window.sessionStorage.setItem(`lpu-profile-${loaded.id}`, JSON.stringify(loaded));
+      writeProfileCache(loaded);
+      if (addWithoutViewing) {
+        setSavedProfiles(nextProfiles);
+        setEditingProfile(null);
+        setProfileUrlInput("");
+        setProfileLoading(false);
+        setProfileSaveMessage(
+          conflict
+            ? `${loaded.name} is already saved and has been refreshed. You can add another profile.`
+            : `${loaded.name} added. You can add another profile.`,
+        );
+        window.requestAnimationFrame(() => form.querySelector<HTMLInputElement>("#profile-url")?.focus());
+        return;
+      }
       window.location.reload();
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : "This profile could not be saved.");
@@ -1886,11 +1886,13 @@ export default function Home() {
             <strong>{profile.name} / LPU</strong>
             <small>Collection overview</small>
           </a>
-          <div className="nav-links">
+          <div className="nav-links" aria-label="Page sections">
             <a href="#overview">Overview</a>
             <a href="#analysis">Analysis</a>
             <a href="#community">Community</a>
+            <a href="#findings">Insights</a>
             <a href="#explorer">Explorer</a>
+            <a href="#wishlist-owners">Wishlist owners</a>
           </div>
           <div className="nav-actions">
             <a className="source-link" href={profile.url} target="_blank" rel="noreferrer">
@@ -2023,6 +2025,15 @@ export default function Home() {
           </div>
         </nav>
 
+        {(loadNotice || refreshMessage) && (
+          <div className="profile-load-notice" role={refreshState === "error" ? "alert" : "status"}>
+            <p>{refreshMessage || loadNotice}</p>
+            <button className="secondary-button" type="button" onClick={() => void refreshProfile()} disabled={refreshInProgress || profileLoading}>
+              {refreshInProgress ? "Refreshing…" : "Refresh profile"}
+            </button>
+          </div>
+        )}
+
         {addProfileOpen && (
           <div
             className="profile-modal-backdrop"
@@ -2051,46 +2062,50 @@ export default function Home() {
               <p>
                 {editingProfile
                   ? "Replace this saved entry with another public lpubelts.com profile. The page reloads after the change."
-                  : "Paste the complete public profile link from lpubelts.com. The profile stays saved in this browser."}
+                  : "Search by profile name or paste a public profile link. The profile stays saved in this browser."}
               </p>
               <form onSubmit={saveProfile} noValidate>
-                <label htmlFor="profile-url">LPU profile link</label>
-                <input
-                  id="profile-url"
-                  type="url"
+                <ProfileNameInput
                   value={profileUrlInput}
-                  onChange={(event) => {
-                    setProfileUrlInput(event.target.value);
+                  onChange={(value) => {
+                    setProfileUrlInput(value);
                     setProfileError("");
+                    setProfileSaveMessage("");
                   }}
-                  placeholder="https://lpubelts.com/#/profile/…?name=…"
-                  autoFocus
-                  aria-invalid={Boolean(profileError)}
-                  aria-describedby={profileError ? "profile-error" : "profile-help"}
+                  disabled={profileLoading}
+                  invalid={Boolean(profileError)}
                 />
-                <small id="profile-help">
-                  Only public lpubelts.com profile links are accepted.
-                </small>
                 {profileError && (
                   <p className="profile-error" id="profile-error" role="alert">
                     {profileError}
                   </p>
                 )}
-                <div className="modal-actions">
+                {profileSaveMessage && (
+                  <p className="profile-save-confirmation" role="status">
+                    {profileSaveMessage}
+                  </p>
+                )}
+                <div className="modal-actions profile-save-actions">
                   <button
                     type="button"
                     className="secondary-button"
                     onClick={() => setAddProfileOpen(false)}
                   >
-                    Cancel
+                    {profileSaveMessage && !editingProfile ? "Done" : "Cancel"}
                   </button>
-                  <button type="submit" className="primary-button" disabled={profileLoading}>
+                  <button type="submit" name="profile-action" value="add-view" className="primary-button" disabled={profileLoading}>
                     {profileLoading
                       ? "Loading profile…"
                       : editingProfile
                         ? "Save profile"
                         : "Add and view profile"}
                   </button>
+                  {!editingProfile && (
+                    <button type="submit" name="profile-action" value="add-only"
+                      className="secondary-button" disabled={profileLoading}>
+                      {profileLoading ? "Loading profile…" : "Add profile only"}
+                    </button>
+                  )}
                 </div>
               </form>
             </section>
@@ -2316,7 +2331,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="section findings-section">
+        <section className="section findings-section" id="findings">
           <SectionHeading
             eyebrow="Interpretation"
             title="What the owned data says"
@@ -2554,6 +2569,8 @@ export default function Home() {
             )}
           </div>
         </section>
+
+        <WishlistOwnerTable activeProfile={profile} loading={profileLoading} paused={addProfileOpen || profileMenuOpen || refreshInProgress} />
 
         <footer>
           <div className="footer-brand">

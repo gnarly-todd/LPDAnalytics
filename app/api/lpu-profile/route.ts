@@ -1,12 +1,7 @@
 import type { Belt, LockRecord } from "../../data";
+import { fetchLpuUser, LpuRateLimitError } from "../../lpu-request";
 
 const GITHUB_PAGES_ORIGIN = "https://gnarly-todd.github.io";
-const LPU_USER_API = "https://explore.lpubelts.com/services/api/v1/users";
-const LPU_FIRESTORE_DOCUMENTS =
-  "https://firestore.googleapis.com/v1/projects/lpu-belt-explorer/databases/(default)/documents/lockcollections";
-// This is the public web API key used by LPU's own profile page. It is only
-// used as a fallback for one explicitly requested public profile document.
-const LPU_PUBLIC_API_KEY = "AIzaSyDGGErdOp0lpzUumA60xJO7BlQr027y9Vo";
 const LPU_DATA =
   "https://raw.githubusercontent.com/Lockpickers-United/lpu-belt-explorer/main/src/data/data.json";
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9_-]{20,128}$/;
@@ -44,79 +39,32 @@ type LpuUserResponse = {
   };
 };
 
-type FirestoreValue = {
-  stringValue?: string;
-  arrayValue?: { values?: FirestoreValue[] };
-};
-
-type FirestoreProfileDocument = {
-  fields?: Record<string, FirestoreValue>;
-};
-
-type ProfileLoadResult =
-  | { source: "api"; response: Response }
-  | { source: "profile-document"; profile: LpuUserResponse };
-
 let catalogPromise: Promise<LpuEntry[]> | undefined;
 
-const delay = (milliseconds: number) =>
-  new Promise<void>((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
-
-function firestoreStringArray(fields: Record<string, FirestoreValue>, field: string) {
-  return (fields[field]?.arrayValue?.values ?? [])
-    .map((value) => value.stringValue)
-    .filter((value): value is string => typeof value === "string");
-}
-
-async function getPublicProfileDocument(profileId: string): Promise<LpuUserResponse> {
-  const response = await fetch(
-    `${LPU_FIRESTORE_DOCUMENTS}/${encodeURIComponent(profileId)}?key=${LPU_PUBLIC_API_KEY}`,
-    { headers: { Accept: "application/json" }, cache: "no-store" },
-  );
-  if (!response.ok) throw new Error(`LPU public profile document request failed (${response.status}).`);
-
-  const document = (await response.json()) as FirestoreProfileDocument;
-  const fields = document.fields;
-  if (!fields) throw new Error("LPU public profile document is missing fields.");
-
-  return {
-    data: {
-      userId: profileId,
-      displayName: fields.displayName?.stringValue,
-      collections: {
-        own: firestoreStringArray(fields, "own"),
-        wishlist: firestoreStringArray(fields, "wishlist"),
-        picked: firestoreStringArray(fields, "picked"),
-      },
-    },
-  };
-}
-
-async function getPublicProfile(profileId: string): Promise<ProfileLoadResult> {
-  // The approved LPU user API occasionally returns a short-lived 503 while it
-  // is under load. Retry only transient failures; invalid and private profiles
-  // must still receive their original response immediately.
-  for (const wait of [0, 600, 1_400]) {
-    if (wait) await delay(wait);
-    const response = await fetch(`${LPU_USER_API}/${encodeURIComponent(profileId)}`, {
-      headers: { Accept: "application/json", "User-Agent": "todd-lock-analytics-profile-loader" },
-      cache: "no-store",
-    });
-
-    if (response.ok || ![429, 500, 502, 503, 504].includes(response.status)) {
-      return { source: "api", response };
-    }
+// Coalesce simultaneous reads of the same public profile. Cache only successful
+// responses briefly; errors/private profiles are never cached as successes.
+const publicProfiles = new Map<string, { expires: number; body: string; fetchedAt: number }>();
+const pendingProfiles = new Map<string, Promise<Response>>();
+async function getPublicProfile(profileId: string): Promise<Response> {
+  const cached = publicProfiles.get(profileId);
+  if (cached && cached.expires > Date.now()) return new Response(cached.body, { headers: { "X-LPU-Fetched-At": String(cached.fetchedAt) } });
+  let pending = pendingProfiles.get(profileId);
+  if (!pending) {
+    pending = fetchLpuUser(profileId).then(async (response) => {
+      if (response.ok) {
+        if (publicProfiles.size >= 200) publicProfiles.delete(publicProfiles.keys().next().value!);
+        const fetchedAt = Date.now();
+        publicProfiles.set(profileId, { expires: fetchedAt + 30_000, body: await response.clone().text(), fetchedAt });
+        response = new Response(await response.text(), { headers: { "X-LPU-Fetched-At": String(fetchedAt) } });
+      }
+      return response;
+    }).finally(() => pendingProfiles.delete(profileId));
+    pendingProfiles.set(profileId, pending);
   }
-
-  // LPU permits direct reads of a known public profile. This fallback does not
-  // enumerate users, issue collection queries, or request any profile other
-  // than the one supplied by the visitor.
-  return { source: "profile-document", profile: await getPublicProfileDocument(profileId) };
+  return (await pending).clone();
 }
 
-const corsHeaders = (origin: string | null) =>
+const corsHeaders = (origin: string | null): Record<string, string> =>
   origin === GITHUB_PAGES_ORIGIN
     ? { "Access-Control-Allow-Origin": GITHUB_PAGES_ORIGIN, Vary: "Origin" }
     : {};
@@ -124,7 +72,9 @@ const corsHeaders = (origin: string | null) =>
 const json = (body: Record<string, unknown>, status: number, origin: string | null) =>
   Response.json(body, {
     status,
-    headers: { "Cache-Control": "no-store", ...corsHeaders(origin) },
+    headers: { "Cache-Control": "no-store", ...corsHeaders(origin),
+      ...(status === 429 && typeof body.retryAt === "number" ? { "Retry-After": String(Math.max(1, Math.ceil((body.retryAt - Date.now()) / 1000))) } : {}),
+    },
   });
 
 const javascript = (body: Record<string, unknown>, callback: string) => {
@@ -142,10 +92,11 @@ const javascript = (body: Record<string, unknown>, callback: string) => {
 async function getCatalog() {
   catalogPromise ??= fetch(LPU_DATA, {
     headers: { "User-Agent": "todd-lock-analytics-profile-loader" },
+    signal: AbortSignal.timeout(20_000),
   }).then(async (response) => {
     if (!response.ok) throw new Error(`LPU catalog request failed (${response.status}).`);
     return (await response.json()) as LpuEntry[];
-  });
+  }).catch((error) => { catalogPromise = undefined; throw error; });
   return catalogPromise;
 }
 
@@ -194,8 +145,8 @@ function parseProfileUrl(value: string) {
   return { id: match[1], suppliedName: hashParams.get("name")?.trim() || null };
 }
 
-function newYorkTimestamp() {
-  const date = new Date();
+function newYorkTimestamp(fetchedAt = Date.now()) {
+  const date = new Date(fetchedAt);
   const day = new Intl.DateTimeFormat("en-US", {
     month: "long",
     day: "numeric",
@@ -248,24 +199,21 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [profileResult, catalog] = await Promise.all([getPublicProfile(parsed.id), getCatalog()]);
+    const [profileResponse, catalog] = await Promise.all([getPublicProfile(parsed.id), getCatalog()]);
 
-    if (profileResult.source === "api" && profileResult.response.status === 404) {
+    if (profileResponse.status === 404) {
       return reply({ message: "That LPU profile does not exist or is not public." }, 404);
     }
-    if (profileResult.source === "api" && !profileResult.response.ok)
-      throw new Error(`LPU profile request failed (${profileResult.response.status}).`);
+    if (!profileResponse.ok)
+      throw new Error(`LPU profile request failed (${profileResponse.status}).`);
 
-    const profile =
-      profileResult.source === "api"
-        ? ((await profileResult.response.json()) as LpuUserResponse)
-        : profileResult.profile;
+    const profile = (await profileResponse.json()) as LpuUserResponse;
     if (profile.data?.userId !== parsed.id) {
       throw new Error("LPU profile response did not match the requested user.");
     }
     const collections = profile.data.collections;
-    if (!Array.isArray(collections?.picked)) {
-      throw new Error("LPU profile response is missing collections.picked.");
+    if (!Array.isArray(collections?.picked) || !Array.isArray(collections?.own) || !Array.isArray(collections?.wishlist)) {
+      throw new Error("LPU profile response is missing collection data.");
     }
     const ownedIds = collectionStrings(collections.own);
     const wishlistIds = collectionStrings(collections.wishlist);
@@ -307,12 +255,14 @@ export async function GET(request: Request) {
           name: displayName,
           url: canonicalUrl,
           locks,
-          refreshedAt: newYorkTimestamp(),
+          refreshedAt: newYorkTimestamp(Number(profileResponse.headers.get("X-LPU-Fetched-At")) || Date.now()),
         },
       },
       200,
     );
   } catch (error) {
+    if (error instanceof LpuRateLimitError)
+      return reply({ message: error.message, retryAt: error.retryAt }, 429);
     console.error("LPU profile loading failed", error);
     return reply(
       { message: "LPU's public profile service is temporarily unavailable. Please try again shortly." },

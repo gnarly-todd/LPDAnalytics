@@ -1,0 +1,54 @@
+.profile-name-status {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+.profile-name-matches ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.profile-name-matches li + li {
+  border-top: 1px solid var(--line);
+}
+.profile-name-matches button {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.profile-name-matches button:hover,
+.profile-name-matches button:focus-visible {
+  background: var(--surface-soft);
+}
+.profile-name-matches strong {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+.profile-name-matches small {
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.profile-save-actions {
+  flex-wrap: wrap;
+}
+.profile-save-confirmation {
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--accent);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
