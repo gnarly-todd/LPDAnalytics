@@ -168,7 +168,7 @@
   padding-top: 32px;
 }
 .home-summary {
-  width: min(100% - 40px, 960px);
+  width: min(100% - 40px, 1280px);
   margin: 0 auto;
   padding: 48px 0 40px;
 }
