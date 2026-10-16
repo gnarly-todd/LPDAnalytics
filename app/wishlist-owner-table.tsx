@@ -58,7 +58,6 @@ export default function WishlistOwnerTable({
   const [cacheCount, setCacheCount] = useState(0);
   const [freshCount, setFreshCount] = useState(0);
   const [query, setQuery] = useState("");
-  const [matchFilter, setMatchFilter] = useState("all");
   const [visibleCount, setVisibleCount] = useState(30);
   const [sort, setSort] = useState<WishlistSort>({ key: "lock", direction: "asc" });
   const members = useMemo(
@@ -180,9 +179,9 @@ export default function WishlistOwnerTable({
   const oldestFetchedAt = fetchedTimes.length ? Math.min(...fetchedTimes) : null;
   const newestFetchedAt = fetchedTimes.length ? Math.max(...fetchedTimes) : null;
   const search = query.trim().toLocaleLowerCase();
+  const unmatchedRows = rows.filter((row) => !row.owners.length);
   const filteredRows = rows.filter(({ lock, owners: matched }) => {
-    if (matchFilter === "matched" && !matched.length) return false;
-    if (matchFilter === "unmatched" && matched.length) return false;
+    if (!matched.length) return false;
     return (
       !search ||
       [lock.name, lock.version, lock.beltLevel ?? lock.belt, ...matched.map((owner) => owner.name)]
@@ -196,7 +195,6 @@ export default function WishlistOwnerTable({
   useEffect(() => {
     setVisibleCount(30);
     setQuery("");
-    setMatchFilter("all");
   }, [activeProfile.id]);
   const changeSort = (key: WishlistSort["key"]) => {
     setVisibleCount(30);
@@ -242,10 +240,9 @@ export default function WishlistOwnerTable({
 
   const blocked = busy || loading || paused || resumeAt > Date.now() || !rows.length;
   const matchedLockCount = matches.filter((row) => row.owners.length > 0).length;
-  const hasFilters = !!search || matchFilter !== "all";
+  const hasFilters = !!search;
   const clearFilters = () => {
     setQuery("");
-    setMatchFilter("all");
     setVisibleCount(30);
   };
   const emptyOwnerText =
@@ -461,12 +458,38 @@ export default function WishlistOwnerTable({
           ) : (
             <>
               <div className="wishlist-results-heading">
-                <h3>Wishlist locks</h3>
+                <h3>Wishlist locks with owners</h3>
                 <p>
                   Owner counts reflect loaded profiles only. Wishlist demand is the published number
                   of wishlists containing each lock.
                 </p>
               </div>
+              {owners.length > 0 && unmatchedRows.length > 0 && (
+                <div className="wishlist-unmatched-message">
+                  <p>
+                    <strong>
+                      {unmatchedRows.length} wishlist {unmatchedRows.length === 1 ? "lock has" : "locks have"} no
+                      {busy ? " matches so far" : " matched owners"}.
+                    </strong>{" "}
+                    These locks are omitted from the results below. Matches cover the {owners.length}
+                    {" "}loaded profiles only{busy ? "; this list updates as profiles load" : ""}.
+                  </p>
+                  <p className="wishlist-unmatched-locks">
+                    {unmatchedRows.map(({ lock }, index) => (
+                      <span key={lock.id}>
+                        {index > 0 && "; "}
+                        <a
+                          href={lock.resourceLinks?.lpu || `https://lpubelts.com/locks/${lock.id}.html`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {lock.name}{lock.version ? ` (${lock.version})` : ""}
+                        </a>
+                      </span>
+                    ))}
+                  </p>
+                </div>
+              )}
               <div className="wishlist-results-controls">
                 <label className="wishlist-search">
                   Find a lock or owner
@@ -479,20 +502,6 @@ export default function WishlistOwnerTable({
                       setVisibleCount(30);
                     }}
                   />
-                </label>
-                <label>
-                  Matches
-                  <select
-                    value={matchFilter}
-                    onChange={(event) => {
-                      setMatchFilter(event.target.value);
-                      setVisibleCount(30);
-                    }}
-                  >
-                    <option value="all">All wishlist locks</option>
-                    <option value="matched">With loaded matches</option>
-                    <option value="unmatched">Without loaded matches</option>
-                  </select>
                 </label>
                 <label>
                   Sort by
@@ -520,8 +529,8 @@ export default function WishlistOwnerTable({
               </div>
               <div className="wishlist-results-meta">
                 <p className="wishlist-result-count" role="status">
-                  Showing {visibleRows.length} of {filteredRows.length} matching wishlist locks
-                  {hasFilters ? ` (${rows.length} total)` : ""}. CSV exports all {rows.length}.
+                  Showing {visibleRows.length} of {filteredRows.length} wishlist locks with owners
+                  {hasFilters ? ` (${matchedLockCount} before search)` : ""}. CSV exports all {rows.length}.
                 </p>
                 {hasFilters && (
                   <button className="wishlist-clear-filters" onClick={clearFilters}>
@@ -531,11 +540,13 @@ export default function WishlistOwnerTable({
               </div>
               {!filteredRows.length ? (
                 <div className="wishlist-empty-state">
-                  <h3>No locks match these filters</h3>
-                  <p>Try a different lock name, owner, or belt.</p>
-                  <button className="secondary-button" onClick={clearFilters}>
-                    Show all wishlist locks
-                  </button>
+                  <h3>{hasFilters ? "No locks match this search" : owners.length ? "No matched owners yet" : "Load owner profiles to find matches"}</h3>
+                  <p>{hasFilters ? "Try a different lock name, owner, or belt." : emptyOwnerText}</p>
+                  {hasFilters && (
+                    <button className="secondary-button" onClick={clearFilters}>
+                      Show all matched locks
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>

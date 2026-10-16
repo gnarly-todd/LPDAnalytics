@@ -58,7 +58,7 @@ function environment(hooks) {
         data: {
           userId: id,
           displayName: `Owner ${id.slice(-3)}`,
-          collections: { own: ["wanted-lock", id] },
+          collections: { own: ["wanted-lock", id, ...Array.from({ length: 64 }, (_, n) => `lock-${n + 1}`)] },
         },
       });
     } finally {
@@ -337,10 +337,19 @@ async function componentChecks() {
   render();
   assert.equal(env.calls + env.directoryCalls, 0);
   let html = renderToStaticMarkup(tree);
-  assert.equal((html.match(/class="wishlist-mobile-card"/g) ?? []).length, 30);
-  assert(html.includes("Show 30 more locks"));
+  assert.equal((html.match(/class="wishlist-mobile-card"/g) ?? []).length, 0);
+  assert(!html.includes("wishlist-unmatched-message"), "Unloaded locks must not be classified as unmatched");
   const button = (label) =>
     nodes(tree).find((node) => node.type === "button" && text(node) === label);
+  async function finishScan() {
+    const deadline = Date.now() + 5000;
+    do {
+      await wait(10);
+      tree = render();
+      if (!button("Stop loading")) return;
+    } while (Date.now() < deadline);
+    throw new Error("Owner scan did not finish within the test deadline");
+  }
   assert(button("Export all CSV").props.disabled);
   assert(!html.includes("wishlist-owner-warning"), "Routine instructions are not warnings");
   assert(html.includes("Not checked yet"), "Unloaded results must not imply zero owners");
@@ -349,12 +358,21 @@ async function componentChecks() {
   tree = render();
   assert(button("Stop loading"), "Loading can be stopped from the scan toolbar");
   assert(button("Loading profiles…").props.disabled);
-  await wait(120);
+  await finishScan();
   tree = render();
   assert.equal(env.calls, 50);
   assert.equal(env.directoryCalls, 1);
   html = renderToStaticMarkup(tree);
   assert(html.includes("Owner 049"), "All fifty matched owner names must be rendered");
+  const unmatchedMessage = nodes(tree).find((node) => node.props?.className === "wishlist-unmatched-message");
+  const unmatchedHtml = renderToStaticMarkup(unmatchedMessage);
+  assert(unmatchedHtml.includes("165 wishlist locks have no matched owners"));
+  assert(unmatchedHtml.includes("Lock 229") && !unmatchedHtml.includes("Lock 000"));
+  assert(html.indexOf("wishlist-unmatched-message") < html.indexOf("wishlist-owner-table"), "Unmatched locks are listed above the table");
+  for (const node of nodes(tree).filter((node) => node.props?.className === "wishlist-mobile-card" || node.type === "tbody")) {
+    assert(!renderToStaticMarkup(node).includes("Lock 229"), "Unmatched locks never appear in desktop rows or mobile cards");
+  }
+  assert(!html.includes("Without loaded matches"), "Unmatched-table filter is removed");
   assert(html.includes("0 loaded from cache · 50 fetched from LPU Belts"), "Fresh results identify their LPU source after completion");
   assert(!/Show \d+ more owners/.test(html), "Owner names must not be collapsed");
   assert(
@@ -381,26 +399,18 @@ async function componentChecks() {
     csv.includes("Lock 229") && csv.includes("Owner 049"),
     "Export keeps all locks and owners despite filters",
   );
-  assert.equal(csv.split("\r\n").length, 280);
+  assert.equal(csv.split("\r\n").length, 3416);
   assert(env.downloads.at(-1).name.endsWith("-wishlist-owners.csv"));
   search.props.onChange({ target: { value: "nothing matches this search" } });
   tree = render();
   html = renderToStaticMarkup(tree);
-  assert(html.includes("No locks match these filters"));
-  button("Show all wishlist locks").props.onClick();
+  assert(html.includes("No locks match this search"));
+  button("Show all matched locks").props.onClick();
   tree = render();
   assert.equal(
     (renderToStaticMarkup(tree).match(/class="wishlist-mobile-card"/g) ?? []).length,
     30,
   );
-  const matchSelect = nodes(tree).find(
-    (node) => node.type === "select" && node.props.value === "all",
-  );
-  matchSelect.props.onChange({ target: { value: "matched" } });
-  tree = render();
-  assert.equal((renderToStaticMarkup(tree).match(/class="wishlist-mobile-card"/g) ?? []).length, 1);
-  button("Clear filters").props.onClick();
-  tree = render();
   const sortSelect = nodes(tree).find(
     (node) => node.type === "select" && node.props.value === "lock:asc",
   );
@@ -416,7 +426,7 @@ async function componentChecks() {
   env.resetBudget();
   button("Fetch latest from LPU Belts").props.onClick();
   tree = render();
-  await wait(120);
+  await finishScan();
   tree = render();
   assert.equal(env.calls, calls + 50);
   env.resetBudget();
@@ -451,7 +461,7 @@ async function componentChecks() {
   button("Load top 50 — cache first").props.onClick();
   render();
   tree = render();
-  await wait(120);
+  await finishScan();
   tree = render();
   assert.equal(env.calls, beforeSwitch + 1, "Only the 51st profile needs fetching");
   html = renderToStaticMarkup(tree);
@@ -466,6 +476,20 @@ async function componentChecks() {
   assert.equal(env.calls, beforeReturn, "Returning to an outside profile uses the cache");
   assert(html.includes("Owner 000") && !html.includes("Owner 050"), "Outside profiles use ranks 1–50");
   assert(html.includes("50 loaded from cache · 0 fetched from LPU Belts"));
+  const fullWishlist = activeProfile;
+  activeProfile = { ...activeProfile, locks: activeProfile.locks.slice(100, 102) };
+  render();
+  tree = render();
+  html = renderToStaticMarkup(tree);
+  assert(html.includes("2 wishlist locks have no matched owners") && html.includes("No matched owners yet"));
+  assert(!html.includes("wishlist-mobile-card") && !html.includes('class="wishlist-owner-table"'), "All-unmatched wishlists have no results table");
+  activeProfile = { ...fullWishlist, locks: fullWishlist.locks.slice(0, 2) };
+  render();
+  tree = render();
+  assert(!renderToStaticMarkup(tree).includes("wishlist-unmatched-message"), "All-matched wishlists have no unmatched message");
+  activeProfile = fullWishlist;
+  render();
+  tree = render();
   profileLoading = true;
   tree = render();
   html = renderToStaticMarkup(tree);
@@ -481,7 +505,7 @@ async function componentChecks() {
   assert(html.includes("No wishlist locks yet"));
   assert(button("Load top 50 — cache first").props.disabled);
   console.log(
-    "PASS: page opening makes no requests; manual cache-first/fetch-latest actions; 30-card pagination; clear/search/match/sort controls; full CSV export; stop/retry; cached export after refresh failure; loading/empty states.",
+    "PASS: page opening makes no requests; manual cache-first/fetch-latest actions; 30-card pagination; clear/search/sort controls; unmatched message outside desktop/mobile results; full CSV export; stop/retry; cached export after refresh failure; loading/empty states.",
   );
 }
 (async () => {
