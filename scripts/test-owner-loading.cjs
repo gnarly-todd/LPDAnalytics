@@ -14,6 +14,10 @@ const profiles = Array.from({ length: 50 }, (_, n) => ({
   url: `https://lpubelts.com/#/profile/public-profile-id-${String(n).padStart(3, "0")}`,
   ownedCount: 1000 - n,
 }));
+const reserveProfile = {
+  id: "public-profile-id-050", name: "Owner 50",
+  url: "https://lpubelts.com/#/profile/public-profile-id-050", ownedCount: 950,
+};
 function storage() {
   const values = new Map();
   return {
@@ -38,7 +42,7 @@ function environment(hooks) {
     if (!url.includes("/services/api/")) {
       env.directoryCalls++;
       return Response.json({
-        data: profiles.map((p) => ({ id: p.id, displayName: p.name, own: p.ownedCount })),
+        data: [...profiles, reserveProfile].map((p) => ({ id: p.id, displayName: p.name, own: p.ownedCount })),
         metadata: { updatedDateTime: "2026-10-16" },
       });
     }
@@ -141,17 +145,25 @@ async function queueChecks() {
   const api = env.load("app/top-owner-profiles.ts");
   assert.equal(api.TOP_OWNER_LIMIT, 50);
   const ranked = api.selectTopOwners({ data: [
-    ...profiles.slice().reverse().map((p) => ({ id: p.id, displayName: p.name, own: p.ownedCount })),
+    ...[...profiles, reserveProfile].reverse().map((p) => ({ id: p.id, displayName: p.name, own: p.ownedCount })),
     { id: "outside-top-fifty-profile", displayName: "Below cutoff", own: 1 },
     { id: "anonymous-profile-id-000", displayName: "No display name", own: 2000 },
   ] });
-  assert.deepEqual(Array.from(ranked.profiles, (p) => p.id), profiles.map((p) => p.id));
-  env.window.localStorage.setItem("lpu-owner-directory-v1", JSON.stringify({
-    profiles: profiles.slice(0, 30), updatedAt: "2026-10-16", fetchedAt: Date.now(),
+  assert.deepEqual(Array.from(ranked.profiles, (p) => p.id), [...profiles, reserveProfile].map((p) => p.id));
+  for (const activeId of [profiles[0].id, profiles[49].id, reserveProfile.id, "outside-top-fifty-profile"]) {
+    const candidates = api.selectOwnerCandidates(ranked.profiles, activeId);
+    assert.equal(candidates.length, 50, "Always select 50 other profiles");
+    assert(!candidates.some((p) => p.id === activeId), "Never include the active profile");
+    assert.equal(new Set(candidates.map((p) => p.id)).size, 50);
+    assert.deepEqual(Array.from(candidates, (p) => p.id), [...profiles, reserveProfile].filter((p) => p.id !== activeId).slice(0, 50).map((p) => p.id));
+  }
+  env.window.localStorage.setItem("lpu-owner-directory-v2", JSON.stringify({
+    profiles: profiles, updatedAt: "2026-10-16", fetchedAt: Date.now(),
   }));
-  assert.equal(api.readOwnerDirectory(), null, "Old Top 30 directories must be refreshed");
+  assert.equal(api.readOwnerDirectory(), null, "Old directories without the 51st profile must be refreshed");
   const directory = await api.fetchTopOwners();
-  assert.equal(directory.profiles.length, 50);
+  assert.equal(directory.profiles.length, 51);
+  assert.equal(api.readOwnerDirectory().profiles.length, 51, "Cache retains the reserve profile");
   await api.fetchTopOwners();
   assert.equal(env.directoryCalls, 1, "New Top 50 directory is cached");
   const updates = [];
@@ -429,6 +441,31 @@ async function componentChecks() {
   );
   assert(renderToStaticMarkup(tree).includes("Owner 049"));
   env.fetch = originalFetch;
+  env.resetBudget();
+  const beforeSwitch = env.calls;
+  const outsideProfile = activeProfile;
+  activeProfile = { ...activeProfile, id: profiles[0].id };
+  render();
+  tree = render();
+  assert.equal(env.calls, beforeSwitch, "Switching profiles remains cache-only");
+  button("Load top 50 — cache first").props.onClick();
+  render();
+  tree = render();
+  await wait(120);
+  tree = render();
+  assert.equal(env.calls, beforeSwitch + 1, "Only the 51st profile needs fetching");
+  html = renderToStaticMarkup(tree);
+  assert(html.includes("Owner 050"), "The 51st profile replaces the active user");
+  assert(!html.includes(">Owner 000<"), "The active user is excluded from owner matches");
+  assert(html.includes("49 loaded from cache · 1 fetched from LPU Belts"));
+  const beforeReturn = env.calls;
+  activeProfile = outsideProfile;
+  render();
+  tree = render();
+  html = renderToStaticMarkup(tree);
+  assert.equal(env.calls, beforeReturn, "Returning to an outside profile uses the cache");
+  assert(html.includes("Owner 000") && !html.includes("Owner 050"), "Outside profiles use ranks 1–50");
+  assert(html.includes("50 loaded from cache · 0 fetched from LPU Belts"));
   profileLoading = true;
   tree = render();
   html = renderToStaticMarkup(tree);

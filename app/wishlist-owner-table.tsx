@@ -14,6 +14,7 @@ import {
   loadOwnerSnapshots,
   readOwnerCache,
   readOwnerDirectory,
+  selectOwnerCandidates,
   snapshotProfile,
   TOP_OWNER_LIMIT,
   type TopOwnerDirectory,
@@ -61,7 +62,7 @@ export default function WishlistOwnerTable({
   const [visibleCount, setVisibleCount] = useState(30);
   const [sort, setSort] = useState<WishlistSort>({ key: "lock", direction: "asc" });
   const members = useMemo(
-    () => (directory?.profiles ?? []).filter((p) => p.id !== activeProfile.id),
+    () => selectOwnerCandidates(directory?.profiles ?? [], activeProfile.id),
     [directory, activeProfile.id],
   );
 
@@ -89,12 +90,12 @@ export default function WishlistOwnerTable({
       const cached = readOwnerDirectory();
       if (cached) {
         setDirectory(cached);
-        const cachedProfiles = cached.profiles
-            .filter((member) => member.id !== activeProfile.id)
-            .flatMap((member) => {
-              const snapshot = readOwnerCache(member.id);
-              return snapshot ? [snapshotProfile(snapshot)] : [];
-            });
+        const cachedProfiles = selectOwnerCandidates(cached.profiles, activeProfile.id).flatMap(
+          (member) => {
+            const snapshot = readOwnerCache(member.id);
+            return snapshot ? [snapshotProfile(snapshot)] : [];
+          },
+        );
         setLoaded(cachedProfiles);
         setCacheCount(cachedProfiles.length);
         setFreshCount(0);
@@ -122,7 +123,7 @@ export default function WishlistOwnerTable({
       const top = await fetchTopOwners(signal, force);
       if (signal.aborted) return;
       setDirectory(top);
-      const candidates = top.profiles.filter((p) => p.id !== activeProfile.id);
+      const candidates = selectOwnerCandidates(top.profiles, activeProfile.id);
       const resolved = new Map<string, { fetchedAt: number; profile: WishlistProfile }>();
       await loadOwnerSnapshots(candidates, {
         signal,
@@ -282,8 +283,9 @@ export default function WishlistOwnerTable({
         <p className="eyebrow">Wishlist connections</p>
         <h2 id="wishlist-owner-heading">{activeProfile.name}’s wishlist</h2>
         <p>
-          Find locks owned by the top {TOP_OWNER_LIMIT} named public LPU collections. Your own
-          profile is excluded. Select an owner’s name to visit their LPU profile.
+          Find locks owned by the top {TOP_OWNER_LIMIT} other named public LPU collections. If
+          your profile is in the top {TOP_OWNER_LIMIT}, the next ranked profile fills its spot.
+          Select an owner’s name to visit their LPU profile.
         </p>
       </header>
 
@@ -690,8 +692,9 @@ export default function WishlistOwnerTable({
             <summary>About coverage, data freshness &amp; export</summary>
             <div>
               <p>
-                Matches cover only the top {directory?.profiles.length ?? TOP_OWNER_LIMIT} named
-                public leaderboard profiles, not every LPU account. Your profile is excluded.
+                Matches cover only the top {directory ? members.length : TOP_OWNER_LIMIT} other
+                named public leaderboard profiles, not every LPU account. Your profile is excluded
+                before selecting the {TOP_OWNER_LIMIT} profiles to check.
                 Ownership does not imply willingness to sell or trade.
               </p>
               <p>

@@ -3,6 +3,8 @@ import type { WishlistProfile } from "./wishlist-owner-utils";
 import { fetchLpuUser, LpuRateLimitError } from "./lpu-request";
 
 export const TOP_OWNER_LIMIT = 50;
+// Keep the next ranked profile available when the active user is in the Top 50.
+const OWNER_DIRECTORY_LIMIT = TOP_OWNER_LIMIT + 1;
 export const OWNER_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 export type TopOwner = { id: string; name: string; url: string; ownedCount: number };
 export type TopOwnerDirectory = { profiles: TopOwner[]; updatedAt: string; fetchedAt?: number };
@@ -38,9 +40,13 @@ export function selectTopOwners(value: unknown): TopOwnerDirectory {
       url: `https://lpubelts.com/#/profile/${p.id}?name=${encodeURIComponent(p.displayName)}`,
     }))
     .sort((a, b) => b.ownedCount - a.ownedCount || a.id.localeCompare(b.id))
-    .slice(0, TOP_OWNER_LIMIT);
+    .slice(0, OWNER_DIRECTORY_LIMIT);
   if (!profiles.length) throw new Error("The public leaderboard has no named ownership profiles.");
   return { profiles, updatedAt: data.metadata?.updatedDateTime ?? "Not supplied" };
+}
+
+export function selectOwnerCandidates(profiles: TopOwner[], activeProfileId: string): TopOwner[] {
+  return profiles.filter((profile) => profile.id !== activeProfileId).slice(0, TOP_OWNER_LIMIT);
 }
 
 export async function fetchTopOwners(
@@ -62,7 +68,7 @@ export async function fetchTopOwners(
   const directory = { ...selectTopOwners(await response.json()), fetchedAt: Date.now() };
   for (const storage of ["localStorage", "sessionStorage"] as const) {
     try {
-      window[storage].setItem("lpu-owner-directory-v2", JSON.stringify(directory));
+      window[storage].setItem("lpu-owner-directory-v3", JSON.stringify(directory));
     } catch {
       /* The manual scan still works without persistent storage. */
     }
@@ -73,7 +79,7 @@ export async function fetchTopOwners(
 export function readOwnerDirectory(): TopOwnerDirectory | null {
   for (const storage of ["localStorage", "sessionStorage"] as const) {
     try {
-      const value = JSON.parse(window[storage].getItem("lpu-owner-directory-v2") || "null");
+      const value = JSON.parse(window[storage].getItem("lpu-owner-directory-v3") || "null");
       if (
         !value ||
         !Array.isArray(value.profiles) ||
@@ -93,7 +99,7 @@ export function readOwnerDirectory(): TopOwnerDirectory | null {
       )
         continue;
       return {
-        profiles: value.profiles.slice(0, TOP_OWNER_LIMIT),
+        profiles: value.profiles.slice(0, OWNER_DIRECTORY_LIMIT),
         updatedAt: value.updatedAt,
         ...(Number.isFinite(value.fetchedAt) ? { fetchedAt: value.fetchedAt } : {}),
       };
