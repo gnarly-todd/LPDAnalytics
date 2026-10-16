@@ -2,9 +2,8 @@ name: Refresh LPU profile data
 
 on:
   schedule:
-    # GitHub may delay jobs scheduled at the top of an hour. Check four times per hour
-    # and use the actual New York time below to run exactly once during the 8 AM hour.
-    - cron: "7,22,37,52 * * * *"
+    # GitHub schedules use UTC. Run at both possible UTC hours, then keep only 8 AM New York time.
+    - cron: "0 12,13 * * *"
   workflow_dispatch:
 
 permissions:
@@ -23,28 +22,13 @@ jobs:
     outputs:
       should_run: ${{ steps.time.outputs.should_run }}
     steps:
-      - name: Check out the current snapshot
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          sparse-checkout: app/data.ts
-
-      - name: Continue once during the 8 AM New York hour or for a manual refresh
+      - name: Continue at 8 AM New York time or for a manual refresh
         id: time
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [[ "$EVENT_NAME" != "schedule" ]]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          current_hour="$(TZ=America/New_York date +%H)"
-          today="$(TZ=America/New_York date '+%B %-d, %Y')"
-          snapshot="$(sed -n 's/^export const profileSnapshotDate = "\(.*\)";$/\1/p' app/data.ts)"
-
-          if [[ "$current_hour" == "08" && "$snapshot" != "$today"* ]]; then
+          if [[ "$EVENT_NAME" != "schedule" || "$(TZ=America/New_York date +%H)" == "08" ]]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
@@ -82,8 +66,11 @@ jobs:
       - name: Refresh Todd's LPU profile
         run: npm run refresh:data
 
+      - name: Refresh public community insights
+        run: node scripts/refresh-insights.mjs
+
       - name: Format generated data
-        run: npm run format -- app/data.ts
+        run: npm run format -- app/data.ts app/community-insights-data.json
 
       - name: Validate source
         run: npm run lint
@@ -106,7 +93,7 @@ jobs:
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          if git diff --quiet -- app/data.ts; then
+          if git diff --quiet -- app/data.ts app/community-insights-data.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "LPU profile data is already current."
             exit 0
@@ -114,7 +101,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/data.ts
+          git add app/data.ts app/community-insights-data.json
           git commit -m "Refresh LPU profile data"
           git push origin "HEAD:${DEFAULT_BRANCH}"
           echo "changed=true" >> "$GITHUB_OUTPUT"
