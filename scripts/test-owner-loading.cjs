@@ -8,7 +8,7 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 const root = path.resolve(__dirname, "..");
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const profiles = Array.from({ length: 30 }, (_, n) => ({
+const profiles = Array.from({ length: 50 }, (_, n) => ({
   id: `public-profile-id-${String(n).padStart(3, "0")}`,
   name: `Owner ${n}`,
   url: `https://lpubelts.com/#/profile/public-profile-id-${String(n).padStart(3, "0")}`,
@@ -139,16 +139,31 @@ function environment(hooks) {
 async function queueChecks() {
   const env = environment();
   const api = env.load("app/top-owner-profiles.ts");
+  assert.equal(api.TOP_OWNER_LIMIT, 50);
+  const ranked = api.selectTopOwners({ data: [
+    ...profiles.slice().reverse().map((p) => ({ id: p.id, displayName: p.name, own: p.ownedCount })),
+    { id: "outside-top-fifty-profile", displayName: "Below cutoff", own: 1 },
+    { id: "anonymous-profile-id-000", displayName: "No display name", own: 2000 },
+  ] });
+  assert.deepEqual(Array.from(ranked.profiles, (p) => p.id), profiles.map((p) => p.id));
+  env.window.localStorage.setItem("lpu-owner-directory-v1", JSON.stringify({
+    profiles: profiles.slice(0, 30), updatedAt: "2026-10-16", fetchedAt: Date.now(),
+  }));
+  assert.equal(api.readOwnerDirectory(), null, "Old Top 30 directories must be refreshed");
+  const directory = await api.fetchTopOwners();
+  assert.equal(directory.profiles.length, 50);
+  await api.fetchTopOwners();
+  assert.equal(env.directoryCalls, 1, "New Top 50 directory is cached");
   const updates = [];
   let result = await api.loadOwnerSnapshots([...profiles, profiles[0]], {
     onProgress: (value) => updates.push(value),
   });
-  assert.equal(env.calls, 30);
+  assert.equal(env.calls, 50);
   assert.equal(env.peak, 3);
-  assert.equal(result.processed, 30);
-  assert.equal(result.fresh, 30);
-  assert.equal(result.snapshots.length, 30);
-  assert(updates.some((value) => value.snapshots.length > 0 && value.snapshots.length < 30));
+  assert.equal(result.processed, 50);
+  assert.equal(result.fresh, 50);
+  assert.equal(result.snapshots.length, 50);
+  assert(updates.some((value) => value.snapshots.length > 0 && value.snapshots.length < 50));
   assert.deepEqual(
     Array.from(result.snapshots, (p) => p.id),
     profiles.map((p) => p.id),
@@ -156,8 +171,8 @@ async function queueChecks() {
   env.calls = 0;
   result = await api.loadOwnerSnapshots(profiles);
   assert.equal(env.calls, 0);
-  assert.equal(result.cached, 30);
-  assert.equal(result.processed, 30);
+  assert.equal(result.cached, 50);
+  assert.equal(result.processed, 50);
   for (const store of [env.window.localStorage, env.window.sessionStorage]) {
     const key = `lpu-top-owner-v1-${profiles[0].id}`;
     const expired = JSON.parse(store.getItem(key));
@@ -167,12 +182,12 @@ async function queueChecks() {
   env.resetBudget();
   result = await api.loadOwnerSnapshots(profiles);
   assert.equal(env.calls, 1);
-  assert.equal(result.cached, 29);
+  assert.equal(result.cached, 49);
   env.calls = 0;
   env.resetBudget();
   result = await api.loadOwnerSnapshots(profiles, { force: true });
-  assert.equal(env.calls, 30);
-  assert.equal(result.fresh, 30);
+  assert.equal(env.calls, 50);
+  assert.equal(result.fresh, 50);
   assert.equal(result.cached, 0);
   const original = env.window.localStorage.getItem;
   env.window.localStorage.getItem = () => {
@@ -180,6 +195,19 @@ async function queueChecks() {
   };
   assert(api.readOwnerCache(profiles[0].id));
   env.window.localStorage.getItem = original;
+
+  // Top 50 fits even after recent interactive requests; the local cap still stops more work.
+  const budgetEnv = environment();
+  const budgetApi = budgetEnv.load("app/top-owner-profiles.ts");
+  budgetEnv.window.localStorage.setItem("lpu-request-budget-v1", JSON.stringify({
+    retryAt: 0, attempts: Array.from({ length: 10 }, () => Date.now()),
+  }));
+  const fullScan = await budgetApi.loadOwnerSnapshots(profiles);
+  assert.equal(fullScan.fresh, 50);
+  assert(!fullScan.rateLimit);
+  const capped = await budgetApi.loadOwnerSnapshots(profiles, { force: true });
+  assert(capped.rateLimit?.backgroundOnly);
+  assert.equal(budgetEnv.calls, 50);
 
   const limited = environment();
   limited.fetch = async () => {
@@ -206,7 +234,7 @@ async function queueChecks() {
   partial.fetch = async () => new Response("", { status: 404 });
   const partialResult = await partialApi.loadOwnerSnapshots(profiles, { force: true });
   assert.equal(partialResult.snapshots.length, 1);
-  assert.equal(Object.keys(partialResult.errors).length, 30);
+  assert.equal(Object.keys(partialResult.errors).length, 50);
   const aborted = environment();
   const abortedApi = aborted.load("app/top-owner-profiles.ts");
   const controller = new AbortController();
@@ -304,28 +332,30 @@ async function componentChecks() {
   assert(button("Export all CSV").props.disabled);
   assert(!html.includes("wishlist-owner-warning"), "Routine instructions are not warnings");
   assert(html.includes("Not checked yet"), "Unloaded results must not imply zero owners");
-  button("Load top 30").props.onClick();
+  button("Load top 50 — cache first").props.onClick();
   render();
   tree = render();
   assert(button("Stop loading"), "Loading can be stopped from the scan toolbar");
   assert(button("Loading profiles…").props.disabled);
   await wait(120);
   tree = render();
-  assert.equal(env.calls, 30);
+  assert.equal(env.calls, 50);
   assert.equal(env.directoryCalls, 1);
   html = renderToStaticMarkup(tree);
-  assert(html.includes("Owner 029"), "All thirty matched owner names must be rendered");
+  assert(html.includes("Owner 049"), "All fifty matched owner names must be rendered");
+  assert(html.includes("0 loaded from cache · 50 fetched from LPU Belts"), "Fresh results identify their LPU source after completion");
   assert(!/Show \d+ more owners/.test(html), "Owner names must not be collapsed");
   assert(
     html.includes("Wishlist owner scan") && html.includes("Started") && html.includes("Finished"),
   );
   assert(html.includes("Cached results retain their original fetch times"));
   const calls = env.calls;
-  button("Load top 30").props.onClick();
+  button("Load top 50 — cache first").props.onClick();
   tree = render();
   await wait(20);
   tree = render();
   assert.equal(env.calls, calls);
+  assert(renderToStaticMarkup(tree).includes("50 loaded from cache · 0 fetched from LPU Belts"), "Cached results identify their source without new requests");
   const search = nodes(tree).find((node) => node.type === "input" && node.props.type === "search");
   search.props.onChange({ target: { value: "Lock 000" } });
   tree = render();
@@ -336,10 +366,10 @@ async function componentChecks() {
   button("Export all CSV").props.onClick();
   const csv = await env.exports.at(-1).text();
   assert(
-    csv.includes("Lock 229") && csv.includes("Owner 029"),
+    csv.includes("Lock 229") && csv.includes("Owner 049"),
     "Export keeps all locks and owners despite filters",
   );
-  assert.equal(csv.split("\r\n").length, 260);
+  assert.equal(csv.split("\r\n").length, 280);
   assert(env.downloads.at(-1).name.endsWith("-wishlist-owners.csv"));
   search.props.onChange({ target: { value: "nothing matches this search" } });
   tree = render();
@@ -372,23 +402,23 @@ async function componentChecks() {
   html = renderToStaticMarkup(tree);
   assert.equal((html.match(/class="wishlist-mobile-card"/g) ?? []).length, 60);
   env.resetBudget();
-  button("Fetch latest").props.onClick();
+  button("Fetch latest from LPU Belts").props.onClick();
   tree = render();
   await wait(120);
   tree = render();
-  assert.equal(env.calls, calls + 30);
+  assert.equal(env.calls, calls + 50);
   env.resetBudget();
-  button("Fetch latest").props.onClick();
+  button("Fetch latest from LPU Belts").props.onClick();
   render();
   tree = render();
   button("Stop loading").props.onClick();
   tree = render();
   await wait(20);
   tree = render();
-  assert(!button("Load top 30").props.disabled, "Stop restores the load action");
+  assert(!button("Load top 50 — cache first").props.disabled, "Stop restores the load action");
   const originalFetch = env.fetch;
   env.fetch = async () => new Response("", { status: 503 });
-  button("Fetch latest").props.onClick();
+  button("Fetch latest from LPU Belts").props.onClick();
   render();
   await wait(20);
   tree = render();
@@ -397,7 +427,7 @@ async function componentChecks() {
     !button("Export all CSV").props.disabled,
     "Previously loaded results can still be exported after a refresh error",
   );
-  assert(renderToStaticMarkup(tree).includes("Owner 029"));
+  assert(renderToStaticMarkup(tree).includes("Owner 049"));
   env.fetch = originalFetch;
   profileLoading = true;
   tree = render();
@@ -412,7 +442,7 @@ async function componentChecks() {
   tree = render();
   html = renderToStaticMarkup(tree);
   assert(html.includes("No wishlist locks yet"));
-  assert(button("Load top 30").props.disabled);
+  assert(button("Load top 50 — cache first").props.disabled);
   console.log(
     "PASS: page opening makes no requests; manual cache-first/fetch-latest actions; 30-card pagination; clear/search/match/sort controls; full CSV export; stop/retry; cached export after refresh failure; loading/empty states.",
   );

@@ -85,18 +85,19 @@ export default function WishlistOwnerTable({
     }
     if (!scanRequested.current) {
       // Opening the page and switching profiles only read local snapshots.
-      // Network requests require an explicit press of Load top 30 / Fetch latest.
+      // Network requests require an explicit press of a load/fetch action.
       const cached = readOwnerDirectory();
       if (cached) {
         setDirectory(cached);
-        setLoaded(
-          cached.profiles
+        const cachedProfiles = cached.profiles
             .filter((member) => member.id !== activeProfile.id)
             .flatMap((member) => {
               const snapshot = readOwnerCache(member.id);
               return snapshot ? [snapshotProfile(snapshot)] : [];
-            }),
-        );
+            });
+        setLoaded(cachedProfiles);
+        setCacheCount(cachedProfiles.length);
+        setFreshCount(0);
       }
       setScanBusy(false);
       return;
@@ -292,9 +293,9 @@ export default function WishlistOwnerTable({
           <span className="wishlist-scope-badge">Manual refresh · 7-day cache</span>
         </div>
         <p className="wishlist-scan-help">
-          Load top {TOP_OWNER_LIMIT} uses saved results and fetches missing or expired profiles.
-          Fetch latest requests fresh data for every profile. Opening this screen never starts a
-          scan.
+          Load top {TOP_OWNER_LIMIT} — cache first reuses profiles saved on this device for up to
+          7 days, fetching only missing or expired profiles from LPU Belts. Fetch latest from LPU
+          Belts requests fresh data for every profile. Opening this screen only reads the cache.
         </p>
         <div className="wishlist-owner-toolbar">
           <div className="wishlist-owner-actions">
@@ -305,16 +306,16 @@ export default function WishlistOwnerTable({
               aria-busy={busy}
             >
               <OwnerActionIcon kind="load" />
-              {busy ? "Loading profiles…" : `Load top ${TOP_OWNER_LIMIT}`}
+              {busy ? "Loading profiles…" : `Load top ${TOP_OWNER_LIMIT} — cache first`}
             </button>
             <button
               className="secondary-button"
               onClick={() => refreshOwners(true)}
               disabled={blocked}
-              title="Refresh all ranked profiles, including results saved within seven days"
+              title="Fetch fresh data from LPU Belts for all ranked profiles, bypassing the seven-day cache"
             >
               <OwnerActionIcon kind="refresh" />
-              Fetch latest
+              Fetch latest from LPU Belts
             </button>
             {busy && (
               <button
@@ -342,15 +343,17 @@ export default function WishlistOwnerTable({
           <span className={`wishlist-state-dot ${busy ? "is-busy" : ""}`} aria-hidden="true" />
           {stateLabel}
         </p>
-        {busy && (
+        {(busy || cacheCount > 0 || freshCount > 0) && (
           <div className="wishlist-scan-progress">
-            <progress
-              aria-label="Ranked profiles checked"
-              value={processed}
-              max={Math.max(1, members.length)}
-            />
+            {busy && (
+              <progress
+                aria-label="Ranked profiles checked"
+                value={processed}
+                max={Math.max(1, members.length)}
+              />
+            )}
             <span>
-              {cacheCount} cached · {freshCount} fetched
+              {cacheCount} loaded from cache · {freshCount} fetched from LPU Belts
             </span>
           </div>
         )}
@@ -692,8 +695,9 @@ export default function WishlistOwnerTable({
                 Ownership does not imply willingness to sell or trade.
               </p>
               <p>
-                Ownership is saved in this browser for up to 7 days. Fetch latest refreshes every
-                ranked profile; Load top {TOP_OWNER_LIMIT} reuses valid saved results. CSV exports
+                Ownership is saved in this browser for up to 7 days. Fetch latest from LPU Belts
+                refreshes every ranked profile; Load top {TOP_OWNER_LIMIT} — cache first reuses
+                valid saved results and fetches missing or expired profiles from LPU Belts. CSV exports
                 every wishlist lock and all loaded matches, regardless of filters, including
                 coverage and each owner’s original fetch time.
               </p>

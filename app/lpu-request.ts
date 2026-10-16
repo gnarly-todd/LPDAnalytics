@@ -2,7 +2,8 @@
 // Reserve capacity for interactive use and always honor the provider's cooldown.
 const STATE_KEY = "lpu-request-budget-v1";
 const WINDOW_MS = 20 * 60 * 1000;
-const BACKGROUND_LIMIT = 40;
+// Allow one Top 50 scan plus ten recent requests within the shared window.
+const BACKGROUND_LIMIT = 60;
 type Budget = { retryAt: number; attempts: number[] };
 let memory: Budget = { retryAt: 0, attempts: [] };
 

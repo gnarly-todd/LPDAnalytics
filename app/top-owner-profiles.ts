@@ -2,7 +2,7 @@ import { parseProfileDirectory, PROFILE_DIRECTORY_URL } from "./profile-name-sea
 import type { WishlistProfile } from "./wishlist-owner-utils";
 import { fetchLpuUser, LpuRateLimitError } from "./lpu-request";
 
-export const TOP_OWNER_LIMIT = 30;
+export const TOP_OWNER_LIMIT = 50;
 export const OWNER_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 export type TopOwner = { id: string; name: string; url: string; ownedCount: number };
 export type TopOwnerDirectory = { profiles: TopOwner[]; updatedAt: string; fetchedAt?: number };
@@ -62,7 +62,7 @@ export async function fetchTopOwners(
   const directory = { ...selectTopOwners(await response.json()), fetchedAt: Date.now() };
   for (const storage of ["localStorage", "sessionStorage"] as const) {
     try {
-      window[storage].setItem("lpu-owner-directory-v1", JSON.stringify(directory));
+      window[storage].setItem("lpu-owner-directory-v2", JSON.stringify(directory));
     } catch {
       /* The manual scan still works without persistent storage. */
     }
@@ -73,7 +73,7 @@ export async function fetchTopOwners(
 export function readOwnerDirectory(): TopOwnerDirectory | null {
   for (const storage of ["localStorage", "sessionStorage"] as const) {
     try {
-      const value = JSON.parse(window[storage].getItem("lpu-owner-directory-v1") || "null");
+      const value = JSON.parse(window[storage].getItem("lpu-owner-directory-v2") || "null");
       if (
         !value ||
         !Array.isArray(value.profiles) ||

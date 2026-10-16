@@ -32,7 +32,7 @@ export const screens = [
   {
     id: "wishlist-owners",
     label: "Wishlist owners",
-    description: "Check which top-30 profiles own locks on your wishlist.",
+    description: "Check which top-50 profiles own locks on your wishlist.",
   },
   {
     id: "compare",
