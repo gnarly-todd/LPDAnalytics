@@ -42,6 +42,7 @@ jobs:
     timeout-minutes: 20
     outputs:
       changed: ${{ steps.commit.outputs.changed }}
+      source_sha: ${{ steps.source.outputs.sha }}
 
     steps:
       - name: Check out the default branch
@@ -106,6 +107,10 @@ jobs:
           git push origin "HEAD:${DEFAULT_BRANCH}"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
+      - name: Record artifact source after committing generated data
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Upload GitHub Pages artifact
         if: steps.commit.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v4
@@ -113,6 +118,9 @@ jobs:
           path: dist-pages
 
   deploy:
+    concurrency:
+      group: github-pages-production
+      cancel-in-progress: false
     name: Deploy refreshed site
     if: needs.refresh.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
     needs: refresh
@@ -122,6 +130,22 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
+      - name: Check out the current default branch for source verification
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Set up Node for source verification
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Skip outdated build artifacts
+        id: current
+        run: node scripts/check-pages-source.mjs
+        env:
+          BUILD_SHA: ${{ needs.refresh.outputs.source_sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Deploy to GitHub Pages
+        if: steps.current.outputs.current == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
