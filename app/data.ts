@@ -24,7 +24,343 @@ export type LockRecord = {
   };
 };
 
-export const profileSnapshotDate = "October 7, 2026 · 8:04 AM EDT";
+export const profileSnapshotDate = "October 16, 2026 · 12:08 AM EDT";
+
+export const profileCollectionsSnapshot: Record<string, string[]> = {
+  own: [
+    "901b35b2",
+    "2455f0ae",
+    "40f7d7c7",
+    "632f4069",
+    "74a00ae3",
+    "e1625c4d",
+    "2ae1e0b8",
+    "4f6bcdb7",
+    "c6529d9c",
+    "85d93eb1",
+    "959a6b9d",
+    "331c9d36",
+    "fb5a9eb7",
+    "c8259a23",
+    "45e3cde7",
+    "826c31e0",
+    "b13f4b57",
+    "d3ad5a73",
+    "b8350901",
+    "29ab2852",
+    "2ae6a691",
+    "104776ef",
+    "aeaa6a09",
+    "639c4f0b",
+    "3335df97",
+    "55053299",
+    "ab1e901f",
+    "e87f0ca2",
+    "d974b48f",
+    "efc01233",
+    "5c0d870b",
+    "ea1afad0",
+    "55511995",
+    "112d0034",
+    "f133510b",
+    "58307da0",
+    "779e7dcb",
+    "222bd1fa",
+    "b8350900",
+    "2484ce70",
+    "9ec8706c",
+    "171f76e9",
+    "2ff8a738",
+    "7168d463",
+    "37951bc4",
+    "9ca2c109",
+    "e35a3c91",
+    "a460c971",
+    "1459e2c6",
+    "bf8970de",
+    "366d5f50",
+    "5a6170fb",
+    "06a28ac7",
+    "d9e3829f",
+    "506b242a",
+    "35330d19",
+    "3198fffc",
+    "aee424c0",
+    "0b604114",
+    "cd0c2ff9",
+    "3c73c705",
+    "1d80c9bb",
+    "a1233156",
+    "5103e650",
+    "562e964e",
+    "13b06cba",
+    "71833308",
+    "f1e92541",
+    "d08aa492",
+    "dd764207",
+    "111062fc",
+    "814c5368",
+    "0b82681f",
+    "c942490e",
+    "ea1d1d8c",
+    "da09d849",
+    "e4bb0668",
+    "07034c0f",
+    "626da374",
+    "07bc680a",
+  ],
+  picked: [
+    "07034c0f",
+    "901b35b2",
+    "2455f0ae",
+    "40f7d7c7",
+    "632f4069",
+    "2ae1e0b8",
+    "fb5a9eb7",
+    "779e7dcb",
+    "959a6b9d",
+    "efc01233",
+    "562e964e",
+  ],
+  wishlist: [
+    "8d67f9b7",
+    "1ae40987",
+    "e957e0d6",
+    "73a718cb",
+    "32fa52a6",
+    "5b842c0e",
+    "1add3dd0",
+    "ebcb29b9",
+    "2801996f",
+    "aa7fc00e",
+    "9b94b1c0",
+    "c11aca1a",
+    "40e50dd4",
+    "ab9df828",
+    "c0af329b",
+    "0418a174",
+    "aec0c82d",
+    "a0ec1618",
+    "6e0bfdd2",
+    "37dc53bb",
+    "b0d2e04c",
+    "5e3397a9",
+    "dd1dd313",
+    "ef221c67",
+    "122b5621",
+    "f3666121",
+    "ed9fa926",
+    "1f3a8ff9",
+    "71bce5b7",
+    "e8901d1c",
+    "8c2983b5",
+    "3fbd7b3d",
+    "9982c0eb",
+    "8f7f1830",
+    "6d754a0a",
+    "3dabf132",
+    "1be10736",
+    "e38d015b",
+    "9c627ebd",
+    "86e86a1d",
+    "93e4cf5f",
+    "75fb1e5c",
+    "3af2407a",
+    "9f613c4a",
+    "281aa393",
+    "d1272b9f",
+    "9da7a5f2",
+    "4a7db3c6",
+    "cf76cfde",
+    "3f73d2ce",
+    "f7452b9f",
+    "f1857cef",
+    "ccdbffbf",
+    "649eaebc",
+    "63a9a2b1",
+    "00cf7717",
+    "5cba063b",
+    "c6a14e93",
+    "3ca098da",
+    "f87db705",
+    "f29a212f",
+    "e718b140",
+    "5a4310d5",
+    "340154fa",
+    "6c0ec943",
+    "2db935ea",
+    "2181e10d",
+    "ef4e0295",
+    "c4f942f0",
+    "c266d57b",
+    "3515caae",
+    "d005e7b8",
+    "b89d9e11",
+    "08b5986d",
+    "5c2f5101",
+    "23c7988c",
+    "0684a655",
+    "74c225d1",
+    "49c381dc",
+    "95a9b042",
+    "97c2b9be",
+    "fe088de0",
+    "c1e91978",
+    "30a4fef5",
+    "bbce33e0",
+    "039a239f",
+    "8f004bf0",
+    "98ba98ae",
+    "8a0c4b07",
+    "93871dad",
+    "4cd09b3b",
+    "4ffe03a9",
+    "06ddb074",
+    "434b5b25",
+    "62520bea",
+    "fd2b533e",
+    "48323cde",
+    "1110ef61",
+    "16906a6c",
+    "8a65b956",
+    "6dd5a34b",
+    "e1e595b9",
+    "8307d77f",
+    "ebe9ee59",
+    "da8331ef",
+    "93c49314",
+    "fd7b514a",
+    "33d6e0df",
+    "bc03135a",
+    "61247b32",
+    "33588917",
+    "58cbc037",
+    "7298a640",
+    "594b1a1c",
+    "7194cc26",
+    "f38cafca",
+    "9659ad59",
+    "1ee01369",
+    "f61461ed",
+    "41b91a0e",
+    "e0191c45",
+    "2efc9257",
+    "9375df98",
+    "660a840e",
+    "b8783269",
+    "848940e5",
+    "05f9773b",
+    "2bf9f60e",
+    "fd5a5246",
+    "5c5701d7",
+    "94ee12b7",
+    "b91890bf",
+    "18e1f45b",
+    "9d865bcd",
+    "87eaa964",
+    "e92d29ad",
+    "b29a8b44",
+    "e3bd3faf",
+    "6033c67a",
+    "9eb3e9c4",
+    "c640fe2c",
+    "9bb97454",
+    "7c6efd49",
+    "6b06f591",
+    "4993a918",
+    "265226b1",
+    "6852489f",
+    "00b569f2",
+    "03cbfaa5",
+    "9d7faa15",
+    "a57c1e9b",
+    "49b2c746",
+    "66d1ab72",
+    "34d27803",
+    "843896be",
+    "aa4c402d",
+    "eed91da5",
+    "434bdf9d",
+    "0770580d",
+    "c8e86f14",
+    "c4484574",
+    "e3081fd3",
+    "43deff29",
+    "deb35ee7",
+    "00a2ff18",
+    "fdb68dc4",
+    "550a0c9d",
+    "31cd85d7",
+    "31431c49",
+    "3daff112",
+    "fa0b5d10",
+    "9c5f4539",
+    "95281228",
+    "131732a0",
+    "6708838f",
+    "5eac6a29",
+    "f777a3f2",
+    "f7ad4c89",
+    "f09ce6b3",
+    "78336fc0",
+    "57fbcb1b",
+    "1e197456",
+    "db749615",
+    "4abcb403",
+    "f048719a",
+    "63b2e02b",
+    "0082fa4c",
+    "8f99236e",
+    "7d5c53c4",
+    "68b5a797",
+    "f7b52501",
+    "3ddfc71c",
+    "d54a6b5f",
+    "a2bd7f1e",
+    "f0e31f32",
+    "d0c510c5",
+    "71c7270b",
+    "ae7d3780",
+    "db63c882",
+    "d1a5cd90",
+    "a974eb0c",
+    "1a7a23d4",
+    "fc627b17",
+    "cad3eff0",
+    "12ff8c25",
+    "fb51b475",
+    "c8694f3a",
+    "6d2555aa",
+    "533c7408",
+    "8ea170d2",
+    "109531f4",
+    "e8c7dd5b",
+    "108549ba",
+    "c9494ee8",
+    "bc1509f5",
+    "10968d37",
+    "dfa88b94",
+    "21b61a85",
+    "284bf0b0",
+    "23437955",
+    "a8e79394",
+    "6e59ba12",
+    "5ab25363",
+    "10ab07eb",
+    "91f40022",
+    "ca6c2e4c",
+    "e151c916",
+    "c0af45f4",
+    "50a463eb",
+    "4f2ed774",
+  ],
+  recorded: [],
+  recordedLocks: [],
+  scorecard: [],
+  safelocksOwn: [],
+  safelocksCracked: [],
+  safelocksWishlist: [],
+};
 
 export const beltOrder: Belt[] = [
   "White",
@@ -416,6 +752,25 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "3515caae",
+    name: "ABUS EC750 / ABUS EC850",
+    version: "T-spools and recessed pins version, not 700/800",
+    mechanisms: ["Dimple"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/3515caae.html",
+    },
+  },
+  {
+    id: "d005e7b8",
+    name: "ABUS EC880 / ABUS P12R / ABUS X12R",
+    mechanisms: ["Dimple"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/d005e7b8.html",
+    },
+  },
+  {
     id: "d9e3829f",
     name: "ASSA 500 / ASSA Flexcore/Flexcore Plus",
     version: "5 pin with barrels and matched countermilling",
@@ -423,6 +778,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Blue",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/d9e3829f.html",
+    },
+  },
+  {
+    id: "b89d9e11",
+    name: "ASSA 500 / Ruko 500",
+    version: "with barrel drivers, no countermilling",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/b89d9e11.html",
     },
   },
   {
@@ -522,6 +887,15 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "08b5986d",
+    name: "IKON Sk6 vector",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/08b5986d.html",
+    },
+  },
+  {
     id: "9b94b1c0",
     name: "iNAHO Tierkey",
     version: "3 row, short format",
@@ -538,6 +912,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Blue",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/ebcb29b9.html",
+    },
+  },
+  {
+    id: "5c2f5101",
+    name: "Kaba 8",
+    version: "2 row and 3 row, <9 pins",
+    mechanisms: ["Dimple"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/5c2f5101.html",
     },
   },
   {
@@ -567,6 +951,26 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Blue",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/331c9d36.html",
+    },
+  },
+  {
+    id: "23c7988c",
+    name: "Medeco Biaxial",
+    version: "4 pins",
+    mechanisms: ["Pin-tumbler", "Sidebar"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/23c7988c.html",
+    },
+  },
+  {
+    id: "0684a655",
+    name: "Medeco X4",
+    version: "Non-SFIC",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/0684a655.html",
     },
   },
   {
@@ -636,6 +1040,15 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "74c225d1",
+    name: "PACLOCK PL410",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/74c225d1.html",
+    },
+  },
+  {
     id: "37dc53bb",
     name: "SEGA Cam Lock",
     mechanisms: ["Dimple"],
@@ -673,12 +1086,69 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "49c381dc",
+    name: "U-Shin Showa Mortise",
+    version: "6 spools, torpedo keypins",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/49c381dc.html",
+    },
+  },
+  {
+    id: "95a9b042",
+    name: "U-Shin Showa X Key",
+    version: "8 pins",
+    mechanisms: ["Dimple"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/95a9b042.html",
+    },
+  },
+  {
+    id: "97c2b9be",
+    name: "VSR 2-row",
+    mechanisms: ["Dimple"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/97c2b9be.html",
+    },
+  },
+  {
+    id: "fe088de0",
+    name: "Winkhaus Titan",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/fe088de0.html",
+    },
+  },
+  {
     id: "779e7dcb",
     name: "Yale 500 / Yale B",
     mechanisms: ["Pin-tumbler"],
     belt: "Blue",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/779e7dcb.html",
+    },
+  },
+  {
+    id: "c1e91978",
+    name: "Yale KM 1 star Superior",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c1e91978.html",
+    },
+  },
+  {
+    id: "30a4fef5",
+    name: "Yale Superior / Yale Platinum / Millenco Magnum",
+    version: "<7 pins",
+    mechanisms: ["Dimple", "Slider"],
+    belt: "Blue",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/30a4fef5.html",
     },
   },
   {
@@ -711,6 +1181,15 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "bbce33e0",
+    name: "Anchor Las Disc Detainer",
+    mechanisms: ["Disc detainer"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/bbce33e0.html",
+    },
+  },
+  {
     id: "ef221c67",
     name: "ASSA 500 / Ruko 500",
     version: "5 pin stacks, gin drivers and matching sleeve",
@@ -728,6 +1207,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Purple",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/45e3cde7.html",
+    },
+  },
+  {
+    id: "039a239f",
+    name: "ASSA Desmo",
+    version: "6 sliders",
+    mechanisms: ["Slider"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/039a239f.html",
     },
   },
   {
@@ -750,6 +1239,25 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "8f004bf0",
+    name: "Bricard Chifral / ABUS EP10 / CISA RS3",
+    version: "all versions, <15 pins",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/8f004bf0.html",
+    },
+  },
+  {
+    id: "98ba98ae",
+    name: "Bricard Supersureté",
+    mechanisms: ["Wafer"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/98ba98ae.html",
+    },
+  },
+  {
     id: "ed9fa926",
     name: "Burg Wächter Gamma 700",
     mechanisms: ["Pin-tumbler"],
@@ -769,9 +1277,19 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "8a0c4b07",
+    name: "Codkey Locksys",
+    version: "<15 pins",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/8a0c4b07.html",
+    },
+  },
+  {
     id: "71bce5b7",
     name: "Corbin Russwin Emhart",
-    version: "4 pins **",
+    version: "LFIC **",
     mechanisms: ["Pin-tumbler"],
     belt: "Purple",
     resourceLinks: {
@@ -799,6 +1317,26 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "93871dad",
+    name: "Fichet 450",
+    version: "no False gates",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/93871dad.html",
+    },
+  },
+  {
+    id: "4cd09b3b",
+    name: 'Gege pExtra / Alfa "pExtra"',
+    version: "6-7 pin",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/4cd09b3b.html",
+    },
+  },
+  {
     id: "3fbd7b3d",
     name: "Godrej Ultra",
     version: "14 pins in 3 rows",
@@ -806,6 +1344,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Purple",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/3fbd7b3d.html",
+    },
+  },
+  {
+    id: "4ffe03a9",
+    name: "IKON sk6 vectorprofil rib extra",
+    version: "5 sliders",
+    mechanisms: ["Pin-tumbler", "Slider"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/4ffe03a9.html",
     },
   },
   {
@@ -824,6 +1372,24 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Purple",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/c11aca1a.html",
+    },
+  },
+  {
+    id: "06ddb074",
+    name: "Kwikset Smartkey (Gen III)",
+    mechanisms: ["Slider"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/06ddb074.html",
+    },
+  },
+  {
+    id: "434b5b25",
+    name: "LIPS Keso padlock",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/434b5b25.html",
     },
   },
   {
@@ -885,6 +1451,44 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "62520bea",
+    name: "Mottura Champions C38",
+    version: "*******",
+    mechanisms: ["Dimple", "Magnet"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/62520bea.html",
+    },
+  },
+  {
+    id: "fd2b533e",
+    name: "Mul-T-Lock Classic Pro / Mul-T-Lock 400",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/fd2b533e.html",
+    },
+  },
+  {
+    id: "48323cde",
+    name: "Mul-T-Lock Classic / Mul-T-Lock Interactive",
+    version: "4 pins, 4 serrated drivers",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/48323cde.html",
+    },
+  },
+  {
+    id: "1110ef61",
+    name: "Mul-T-Lock Gamma",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/1110ef61.html",
+    },
+  },
+  {
     id: "3335df97",
     name: "Mul-T-Lock Jr / Mul-T-Lock Classic / Mul-T-Lock Interactive",
     version: "5 pin stacks, ≥ 4 spooled drivers",
@@ -892,6 +1496,24 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Purple",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/3335df97.html",
+    },
+  },
+  {
+    id: "16906a6c",
+    name: "Mul-T-Lock MT5 / Mul-T-Lock MTL 500",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/16906a6c.html",
+    },
+  },
+  {
+    id: "8a65b956",
+    name: "Mul-T-Lock Omega Plus",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/8a65b956.html",
     },
   },
   {
@@ -904,6 +1526,24 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "6dd5a34b",
+    name: "Ruko Combi 900",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/6dd5a34b.html",
+    },
+  },
+  {
+    id: "e1e595b9",
+    name: "Sargent Signature",
+    mechanisms: ["Pin-tumbler", "Sidebar"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/e1e595b9.html",
+    },
+  },
+  {
     id: "3dabf132",
     name: "Schlage Everest 29SL",
     mechanisms: ["Slider"],
@@ -913,12 +1553,32 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "8307d77f",
+    name: "U-Shin Showa X Key",
+    version: "12 pins",
+    mechanisms: ["Dimple"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/8307d77f.html",
+    },
+  },
+  {
     id: "1be10736",
     name: "Yale 5000",
     mechanisms: ["Pin-tumbler", "Slider"],
     belt: "Purple",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/1be10736.html",
+    },
+  },
+  {
+    id: "ebe9ee59",
+    name: "Yale Superior / Yale Platinum / Millenco Magnum",
+    version: "7 or 9 pins",
+    mechanisms: ["Dimple", "Slider"],
+    belt: "Purple",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/ebe9ee59.html",
     },
   },
   {
@@ -951,6 +1611,15 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "da8331ef",
+    name: "ABUS XP20s / ABUS XP2s / ABUS XP2 / CISA AP3 / CISA AP4S / Bricard XP S2 / Bricard Mistral S",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/da8331ef.html",
+    },
+  },
+  {
     id: "d3ad5a73",
     name: "ASSA d12 / ASSA P600 / ASSA Neptun 1900 / Ruko Merkur / TrioVing d12 level 1 / Ruko 1200",
     version: "barrel drivers, forked keypins, optional long pin",
@@ -971,12 +1640,79 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "93c49314",
+    name: "ASSA Desmo RCX",
+    version: "10 sliders, no mastered pins",
+    mechanisms: ["Slider"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/93c49314.html",
+    },
+  },
+  {
+    id: "fd7b514a",
+    name: "ASSA Twin Combi / ASSA 1800 / ASSA 4800",
+    version: "barrel drivers, 2 or 3 finger pins",
+    mechanisms: ["Pin-tumbler", "Sidepins", "Sidebar"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/fd7b514a.html",
+    },
+  },
+  {
+    id: "33d6e0df",
+    name: "Australian Lock Co. Galaxy",
+    mechanisms: ["Pump/push"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/33d6e0df.html",
+    },
+  },
+  {
     id: "e38d015b",
     name: "Burg Wächter Alpha 800",
     mechanisms: ["Wafer"],
     belt: "Brown",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/e38d015b.html",
+    },
+  },
+  {
+    id: "bc03135a",
+    name: "Codkey Locksys",
+    version: "≥15 pins",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/bc03135a.html",
+    },
+  },
+  {
+    id: "61247b32",
+    name: "DOM System D",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/61247b32.html",
+    },
+  },
+  {
+    id: "33588917",
+    name: 'Eagle "Supr-Security" (with shutter)',
+    mechanisms: ["Wafer"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/33588917.html",
+    },
+  },
+  {
+    id: "58cbc037",
+    name: "Fichet 450 / Fichet 484",
+    version: "with False gates, 4-6 mastered levers",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/58cbc037.html",
     },
   },
   {
@@ -998,6 +1734,34 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "7298a640",
+    name: "Fuki Tierkey",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/7298a640.html",
+    },
+  },
+  {
+    id: "594b1a1c",
+    name: "Gerda HSS",
+    mechanisms: ["Disc detainer"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/594b1a1c.html",
+    },
+  },
+  {
+    id: "7194cc26",
+    name: "GOAL D9",
+    version: "9 pin",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/7194cc26.html",
+    },
+  },
+  {
     id: "a1233156",
     name: "GOAL P",
     version: "6 pin",
@@ -1005,6 +1769,160 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Brown",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/a1233156.html",
+    },
+  },
+  {
+    id: "f38cafca",
+    name: "IKON tk5 sperwellenprofil",
+    version: "with smooth fingerpins",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/f38cafca.html",
+    },
+  },
+  {
+    id: "9659ad59",
+    name: "iNAHO Tierkey",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/9659ad59.html",
+    },
+  },
+  {
+    id: "1ee01369",
+    name: "JPM 405",
+    mechanisms: ["Pump/push"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/1ee01369.html",
+    },
+  },
+  {
+    id: "f61461ed",
+    name: "Kaba 14",
+    version: "<13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/f61461ed.html",
+    },
+  },
+  {
+    id: "41b91a0e",
+    name: "Kaba Ace",
+    version: "<13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/41b91a0e.html",
+    },
+  },
+  {
+    id: "e0191c45",
+    name: "Kaba Gemini",
+    version: "<13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/e0191c45.html",
+    },
+  },
+  {
+    id: "2efc9257",
+    name: "Kaba Gemini pluS",
+    version: "<14 pins",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/2efc9257.html",
+    },
+  },
+  {
+    id: "9375df98",
+    name: "Kaken KXR",
+    mechanisms: ["Slider", "Pin-tumbler"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/9375df98.html",
+    },
+  },
+  {
+    id: "660a840e",
+    name: "Kale Kilit 164 CEC",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/660a840e.html",
+    },
+  },
+  {
+    id: "b8783269",
+    name: "Mauer NW4 / Mauer NW5 / Mauer NW6",
+    mechanisms: ["Dimple", "Wafer"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/b8783269.html",
+    },
+  },
+  {
+    id: "848940e5",
+    name: "Medeco Duracam",
+    version: "***",
+    mechanisms: ["Dimple", "Slider", "Sidebar"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/848940e5.html",
+    },
+  },
+  {
+    id: "05f9773b",
+    name: "Medeco Original / Medeco Biaxial / Medeco M3 / Chubb Biaxial",
+    version: "≥ 6 pin with ≥ 4 key pins with false gates",
+    mechanisms: ["Sidebar", "Pin-tumbler"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/05f9773b.html",
+    },
+  },
+  {
+    id: "2bf9f60e",
+    name: "MIWA PS / Tostem DN",
+    version: "<7 unmastered wafers",
+    mechanisms: ["Slider"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/2bf9f60e.html",
+    },
+  },
+  {
+    id: "fd5a5246",
+    name: "Mul-T-Lock 700",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/fd5a5246.html",
+    },
+  },
+  {
+    id: "5c5701d7",
+    name: "Mul-T-Lock Classic / Mul-T-Lock Interactive",
+    version: "5 pin stacks, 5 serrated drivers",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/5c5701d7.html",
+    },
+  },
+  {
+    id: "94ee12b7",
+    name: "Robur 2391 Safe Deposit Lock",
+    version: "<3 barrels or gins with matched milling",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/94ee12b7.html",
     },
   },
   {
@@ -1023,6 +1941,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Brown",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/626da374.html",
+    },
+  },
+  {
+    id: "b91890bf",
+    name: "U-Shin Showa NX",
+    version: "<13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/b91890bf.html",
     },
   },
   {
@@ -1054,6 +1982,52 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "18e1f45b",
+    name: "WEST 916 / WEST 955",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/18e1f45b.html",
+    },
+  },
+  {
+    id: "9d865bcd",
+    name: "Winkhaus X-Tra",
+    version: "<9 pins",
+    mechanisms: ["Dimple"],
+    belt: "Brown",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/9d865bcd.html",
+    },
+  },
+  {
+    id: "87eaa964",
+    name: "Abloy Disklock",
+    mechanisms: ["Disc detainer"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/87eaa964.html",
+    },
+  },
+  {
+    id: "e92d29ad",
+    name: "Abloy High Profile",
+    mechanisms: ["Disc detainer"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/e92d29ad.html",
+    },
+  },
+  {
+    id: "b29a8b44",
+    name: "ABUS EC700 / ABUS EC800",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/b29a8b44.html",
+    },
+  },
+  {
     id: "b8350901",
     name: "ABUS Plus",
     version: "with butterfly discs",
@@ -1071,6 +2045,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Red",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/29ab2852.html",
+    },
+  },
+  {
+    id: "e3bd3faf",
+    name: "ASSA 700",
+    version: "7 pin, with gin/tree pins and matching countermilling in ≥ 4 chambers, < 2 tree pins",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/e3bd3faf.html",
     },
   },
   {
@@ -1094,6 +2078,25 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "6033c67a",
+    name: "ASSA Twin 6000",
+    version: "LFIC",
+    mechanisms: ["Pin-tumbler", "Sidebar"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/6033c67a.html",
+    },
+  },
+  {
+    id: "9eb3e9c4",
+    name: "Banham m2002",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/9eb3e9c4.html",
+    },
+  },
+  {
     id: "3af2407a",
     name: "BKS Janus",
     version: "< 13 pins",
@@ -1101,6 +2104,120 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     belt: "Red",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/3af2407a.html",
+    },
+  },
+  {
+    id: "c640fe2c",
+    name: "Bramah Modern 7 Wafer",
+    mechanisms: ["Pump/push"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c640fe2c.html",
+    },
+  },
+  {
+    id: "9bb97454",
+    name: "CISM Atlas",
+    mechanisms: ["Magnet", "Pump/push"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/9bb97454.html",
+    },
+  },
+  {
+    id: "7c6efd49",
+    name: "Codkey Locksys L52",
+    version: "factory split core, 24 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/7c6efd49.html",
+    },
+  },
+  {
+    id: "c4f942f0",
+    name: "Corbin Russwin Emhart",
+    version: "6 pins **",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c4f942f0.html",
+    },
+  },
+  {
+    id: "6b06f591",
+    name: "DOM ix Saturn / INN Key Smart",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/6b06f591.html",
+    },
+  },
+  {
+    id: "4993a918",
+    name: "DOM RS 8 / Dorma RS 8",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/4993a918.html",
+    },
+  },
+  {
+    id: "265226b1",
+    name: "EVVA 3KS / EVVA 3KS+ / EVVA 4KS",
+    version: "without False gates or 1-3 mastered sliders",
+    mechanisms: ["Slider"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/265226b1.html",
+    },
+  },
+  {
+    id: "00b569f2",
+    name: "EVVA Dual",
+    version: ">4 mastered elements",
+    mechanisms: ["Slider"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/00b569f2.html",
+    },
+  },
+  {
+    id: "6852489f",
+    name: "EVVA ICS",
+    version: ">2 mastered elements",
+    mechanisms: ["Slider", "Pin-tumbler"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/6852489f.html",
+    },
+  },
+  {
+    id: "03cbfaa5",
+    name: "Fichet 450 / Fichet 484",
+    version: "w/ False gates, 2-3 mastered levers",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/03cbfaa5.html",
+    },
+  },
+  {
+    id: "9d7faa15",
+    name: "Fontaine Dynaxis",
+    mechanisms: ["Pump/push"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/9d7faa15.html",
+    },
+  },
+  {
+    id: "a57c1e9b",
+    name: "FTH Thirard Pacific",
+    mechanisms: ["Pump/push"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/a57c1e9b.html",
     },
   },
   {
@@ -1114,6 +2231,135 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "49b2c746",
+    name: "Hori Trident",
+    version: "spools",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/49b2c746.html",
+    },
+  },
+  {
+    id: "66d1ab72",
+    name: "IKON SK6 Sperrwelleprofil",
+    version: "4 Serrated Fingerpins, Non-Chamfered Sidebar",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/66d1ab72.html",
+    },
+  },
+  {
+    id: "34d27803",
+    name: "IKON tk5 sperwellenprofil",
+    version: "with serrated fingerpins",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/34d27803.html",
+    },
+  },
+  {
+    id: "843896be",
+    name: "IKON Verso",
+    mechanisms: ["Slider"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/843896be.html",
+    },
+  },
+  {
+    id: "aa4c402d",
+    name: "Kaba 14",
+    version: "13+ pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/aa4c402d.html",
+    },
+  },
+  {
+    id: "eed91da5",
+    name: "Kaba 20 / MIWA JN / Kaba Star",
+    version: "4 directions, < 15 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/eed91da5.html",
+    },
+  },
+  {
+    id: "434bdf9d",
+    name: "Kaba Ace",
+    version: "≥13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/434bdf9d.html",
+    },
+  },
+  {
+    id: "0770580d",
+    name: "Kaba experT / Kaba Quattro",
+    version: "<15 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/0770580d.html",
+    },
+  },
+  {
+    id: "c8e86f14",
+    name: "Kaba Gemini",
+    version: "≥13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c8e86f14.html",
+    },
+  },
+  {
+    id: "c4484574",
+    name: "Kaba Gemini pluS",
+    version: "≥14 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c4484574.html",
+    },
+  },
+  {
+    id: "e3081fd3",
+    name: "Kaba Penta / Kaba Penta Cross",
+    version: "<15 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/e3081fd3.html",
+    },
+  },
+  {
+    id: "43deff29",
+    name: "Kaba Star",
+    version: "5+ directions, <16 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/43deff29.html",
+    },
+  },
+  {
+    id: "deb35ee7",
+    name: "Keso 8000Ω² / Keso 6000 FP2",
+    version: ">= 13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/deb35ee7.html",
+    },
+  },
+  {
     id: "281aa393",
     name: "Kromer Novum",
     version: "8 levers",
@@ -1124,12 +2370,90 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "00a2ff18",
+    name: "Medeco M4",
+    mechanisms: ["Pin-tumbler", "Slider", "Sidebar"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/00a2ff18.html",
+    },
+  },
+  {
     id: "814c5368",
     name: "MIWA LS7",
     mechanisms: ["Slider"],
     belt: "Red",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/814c5368.html",
+    },
+  },
+  {
+    id: "fdb68dc4",
+    name: "MIWA PR",
+    version: "<7 unmastered levers",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/fdb68dc4.html",
+    },
+  },
+  {
+    id: "550a0c9d",
+    name: "MIWA PS / Tostem DN",
+    version: "7-8 unmastered levers",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/550a0c9d.html",
+    },
+  },
+  {
+    id: "31cd85d7",
+    name: "MIWA SR",
+    mechanisms: ["Wafer"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/31cd85d7.html",
+    },
+  },
+  {
+    id: "31431c49",
+    name: "MIWA U9 / MIWA UR",
+    version:
+      "<8 unmastered levers, barred False gates (old shallow False gates counts as Brown Belt)",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/31431c49.html",
+    },
+  },
+  {
+    id: "3daff112",
+    name: "Mottura Champions C55 / Mottura Champions CP6",
+    mechanisms: ["Dimple", "Rotors", "Trap Pins"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/3daff112.html",
+    },
+  },
+  {
+    id: "fa0b5d10",
+    name: "Mul-T-Lock MT5+ Short",
+    version: "4 drivers, 4 sliders",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/fa0b5d10.html",
+    },
+  },
+  {
+    id: "9c5f4539",
+    name: "Picard Vigie / Heracles Pericles",
+    version: "7 pins, euro profile",
+    mechanisms: ["Pump/push"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/9c5f4539.html",
     },
   },
   {
@@ -1181,6 +2505,75 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "95281228",
+    name: "U-Shin Showa NX",
+    version: "≥ 13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/95281228.html",
+    },
+  },
+  {
+    id: "131732a0",
+    name: "Winkhaus X-Tra",
+    version: "9-13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/131732a0.html",
+    },
+  },
+  {
+    id: "6708838f",
+    name: "Xylok",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/6708838f.html",
+    },
+  },
+  {
+    id: "5eac6a29",
+    name: "Yanai R 2200M",
+    version: "<14 pins",
+    mechanisms: ["Dimple"],
+    belt: "Red",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/5eac6a29.html",
+    },
+  },
+  {
+    id: "1a7a23d4",
+    name: "Abloy Disklock Pro / Abloy Novel",
+    mechanisms: ["Disc detainer"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/1a7a23d4.html",
+    },
+  },
+  {
+    id: "12ff8c25",
+    name: "Abloy Easy",
+    mechanisms: ["Disc detainer"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/12ff8c25.html",
+    },
+  },
+  {
+    id: "fc627b17",
+    name: "Abloy Exec",
+    mechanisms: ["Disc detainer"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/fc627b17.html",
+    },
+  },
+  {
     id: "e87f0ca2",
     name: "Abloy Protec2",
     mechanisms: ["Disc detainer"],
@@ -1188,6 +2581,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 3",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/e87f0ca2.html",
+    },
+  },
+  {
+    id: "cad3eff0",
+    name: "Abloy Sento",
+    mechanisms: ["Disc detainer"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/cad3eff0.html",
     },
   },
   {
@@ -1212,6 +2615,17 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "6e59ba12",
+    name: "ASSA dp4400 / ASSA dp11 / TrioVing dp / Ruko Garant+",
+    version: "6 pin with 10 sliders",
+    mechanisms: ["Pin-tumbler", "Slider"],
+    belt: "Black",
+    beltLevel: "Black 3",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/6e59ba12.html",
+    },
+  },
+  {
     id: "104776ef",
     name: "ASSA Twin 6000",
     version: "gin drivers, 6 stacks with 5 side pins",
@@ -1223,6 +2637,17 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "f777a3f2",
+    name: "ASSA Twin 6000",
+    version: "LFIC",
+    mechanisms: ["Pin-tumbler", "Sidebar"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/f777a3f2.html",
+    },
+  },
+  {
     id: "7168d463",
     name: "ASSA Twin Combi / ASSA Triton / ASSA Neptun 4900 / TrioVing Twin Control",
     version: "6 pin with 5 finger pins",
@@ -1231,6 +2656,28 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 2",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/7168d463.html",
+    },
+  },
+  {
+    id: "fb51b475",
+    name: "ASSA Twin Combi / Ruko Garant",
+    version: "with gin drivers",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/fb51b475.html",
+    },
+  },
+  {
+    id: "f7ad4c89",
+    name: "ASSA Twin Exclusive 5700 (Baltic)",
+    version: "6 pin with 5 side pins with 4 possible heights each",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/f7ad4c89.html",
     },
   },
   {
@@ -1256,6 +2703,17 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "c8694f3a",
+    name: "ASSA Twin v10",
+    version: "gin drivers, 6 stacks with 5 side pins",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c8694f3a.html",
+    },
+  },
+  {
     id: "ab1e901f",
     name: "Australian Lock Co. BiLock",
     version: "12 sliders, 0 mastered",
@@ -1264,6 +2722,38 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 2",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/ab1e901f.html",
+    },
+  },
+  {
+    id: "6d2555aa",
+    name: "Australian Lock Co. BiLock Exclusive",
+    version: "picked to control",
+    mechanisms: ["Slider"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/6d2555aa.html",
+    },
+  },
+  {
+    id: "f09ce6b3",
+    name: "BKS Janus",
+    version: "13 or more pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/f09ce6b3.html",
+    },
+  },
+  {
+    id: "78336fc0",
+    name: "Bowley Door Lock",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/78336fc0.html",
     },
   },
   {
@@ -1299,6 +2789,27 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "c266d57b",
+    name: "Corbin Russwin Emhart",
+    version: "≥ 2 mastered chambers **",
+    mechanisms: ["Pin-tumbler"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c266d57b.html",
+    },
+  },
+  {
+    id: "57fbcb1b",
+    name: "DOM Diamant",
+    mechanisms: ["Disc detainer"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/57fbcb1b.html",
+    },
+  },
+  {
     id: "3c73c705",
     name: "DOM ix Twinstar",
     mechanisms: ["Dimple"],
@@ -1320,6 +2831,72 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "1e197456",
+    name: "EVVA Dual",
+    version: "1-4 mastered elements",
+    mechanisms: ["Slider"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/1e197456.html",
+    },
+  },
+  {
+    id: "533c7408",
+    name: "EVVA Dual",
+    version: "0 (zero) mastered elements",
+    mechanisms: ["Slider"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/533c7408.html",
+    },
+  },
+  {
+    id: "db749615",
+    name: "EVVA ICS",
+    version: "1-2 mastered elements",
+    mechanisms: ["Slider", "Pin-tumbler"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/db749615.html",
+    },
+  },
+  {
+    id: "8ea170d2",
+    name: "EVVA ICS",
+    version: "0 (zero) mastered elements",
+    mechanisms: ["Pin-tumbler", "Slider"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/8ea170d2.html",
+    },
+  },
+  {
+    id: "5ab25363",
+    name: "EVVA MCS gen 1 / EVVA MCS gen 2 / IKON M",
+    version: "with up to 5 additional gates for mastering",
+    mechanisms: ["Magnet", "Pin-tumbler"],
+    belt: "Black",
+    beltLevel: "Black 3",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/5ab25363.html",
+    },
+  },
+  {
+    id: "4abcb403",
+    name: "Fichet 450 / Fichet 484",
+    version: "false gates, 1 mastered lever",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/4abcb403.html",
+    },
+  },
+  {
     id: "340154fa",
     name: "Fichet 450 / Fichet 484",
     version: "w/ False gates, 0 mastered levers",
@@ -1331,6 +2908,38 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "10ab07eb",
+    name: "Fichet 787",
+    version: "no blocker",
+    mechanisms: ["Pump/push", "Lever/sidebar"],
+    belt: "Black",
+    beltLevel: "Black 3",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/10ab07eb.html",
+    },
+  },
+  {
+    id: "c0af45f4",
+    name: "Fichet F3D",
+    version: "outside cylinder - upgrade of indoor cylinder",
+    mechanisms: ["Pump/push"],
+    belt: "Black",
+    beltLevel: "Black 5",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c0af45f4.html",
+    },
+  },
+  {
+    id: "f048719a",
+    name: "Fichet-Bauche M2B / Fichet-Bauche M3B",
+    mechanisms: ["Lever"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/f048719a.html",
+    },
+  },
+  {
     id: "3ca098da",
     name: "GOAL Grand V",
     mechanisms: ["Dimple"],
@@ -1338,6 +2947,28 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 3",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/3ca098da.html",
+    },
+  },
+  {
+    id: "63b2e02b",
+    name: "GOAL V18 / GOAL GP",
+    version: "14-16 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/63b2e02b.html",
+    },
+  },
+  {
+    id: "109531f4",
+    name: "GOAL V18 / GOAL GP",
+    version: "≥17 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/109531f4.html",
     },
   },
   {
@@ -1352,6 +2983,148 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "e8c7dd5b",
+    name: "Hori Trident",
+    version: "T-spool drivers",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/e8c7dd5b.html",
+    },
+  },
+  {
+    id: "108549ba",
+    name: "IKON SK6 Sperrwelle Extra Code",
+    version: "6 pin with 5 finger pins",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/108549ba.html",
+    },
+  },
+  {
+    id: "c9494ee8",
+    name: "IKON WSW",
+    version: "7 sliders, upgrade of WSW with 5 sliders",
+    mechanisms: ["Pin-tumbler", "Slider"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/c9494ee8.html",
+    },
+  },
+  {
+    id: "0082fa4c",
+    name: "JPM Surf / Ruko Combi Plus",
+    version: "6 pin with 5 side pins with 3 possible heights each",
+    mechanisms: ["Pin-tumbler", "Sidepins"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/0082fa4c.html",
+    },
+  },
+  {
+    id: "8f99236e",
+    name: "Kaba 20 / MIWA JN / Kaba Star",
+    version: "4 directions, ≥ 15 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/8f99236e.html",
+    },
+  },
+  {
+    id: "7d5c53c4",
+    name: "Kaba Matrix",
+    version: "16 pins (fully pinned)",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/7d5c53c4.html",
+    },
+  },
+  {
+    id: "68b5a797",
+    name: "Kaba Penta / Kaba Penta Cross",
+    version: "15-20 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/68b5a797.html",
+    },
+  },
+  {
+    id: "bc1509f5",
+    name: "Kaba Penta / Kaba Penta Cross",
+    version: "21 or more pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/bc1509f5.html",
+    },
+  },
+  {
+    id: "f7b52501",
+    name: "Kaba Quattro / Kaba experT",
+    version: "15-20 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/f7b52501.html",
+    },
+  },
+  {
+    id: "10968d37",
+    name: "Kaba Quattro / Kaba experT",
+    version: "21 or more pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/10968d37.html",
+    },
+  },
+  {
+    id: "3ddfc71c",
+    name: "Kaba Star",
+    version: "≥ 5 rows, 16-20 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/3ddfc71c.html",
+    },
+  },
+  {
+    id: "dfa88b94",
+    name: "Kaba Star",
+    version: "≥ 5 rows, 21 or more pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/dfa88b94.html",
+    },
+  },
+  {
+    id: "d54a6b5f",
+    name: "Kaba Titan / Kaba Aura / Kaba Titancombi",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/d54a6b5f.html",
+    },
+  },
+  {
     id: "f87db705",
     name: "Kromer Protector (BP55K)",
     mechanisms: ["Wafer"],
@@ -1359,6 +3132,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 5",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/f87db705.html",
+    },
+  },
+  {
+    id: "50a463eb",
+    name: "Kromer Protector (Non-BP55K)",
+    mechanisms: ["Wafer"],
+    belt: "Black",
+    beltLevel: "Black 5",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/50a463eb.html",
     },
   },
   {
@@ -1370,6 +3153,71 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 1",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/f1857cef.html",
+    },
+  },
+  {
+    id: "a2bd7f1e",
+    name: "MIWA LB",
+    mechanisms: ["Slider"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/a2bd7f1e.html",
+    },
+  },
+  {
+    id: "f0e31f32",
+    name: "MIWA LS10",
+    mechanisms: ["Slider"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/f0e31f32.html",
+    },
+  },
+  {
+    id: "d0c510c5",
+    name: "MIWA PR",
+    version: "7-8 unmastered elements",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/d0c510c5.html",
+    },
+  },
+  {
+    id: "21b61a85",
+    name: "MIWA PR",
+    version: "9-10 unmastered elements",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/21b61a85.html",
+    },
+  },
+  {
+    id: "91f40022",
+    name: "MIWA PR",
+    version: "11 unmastered elements",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Black",
+    beltLevel: "Black 3",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/91f40022.html",
+    },
+  },
+  {
+    id: "71c7270b",
+    name: "MIWA U9",
+    version:
+      "8 unmastered elements, barred False gates (old shallow False gates counts as Red Belt)",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/71c7270b.html",
     },
   },
   {
@@ -1394,6 +3242,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "ae7d3780",
+    name: "Mottura Champions C43 / Mottura Champions C43 Plus / Mottura Champions C44 / Mottura Champions C48 / Mottura Champions C9P",
+    mechanisms: ["Dimple", "Rotors"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/ae7d3780.html",
+    },
+  },
+  {
     id: "649eaebc",
     name: "Mul-T-Lock MT5+ / Mul-T-Lock 800 / Lockwood MT5 / IKON R10",
     version: "not mastered",
@@ -1402,6 +3260,17 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 1",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/649eaebc.html",
+    },
+  },
+  {
+    id: "4f2ed774",
+    name: "NATO Mersey",
+    version: "10 lever",
+    mechanisms: ["Lever"],
+    belt: "Black",
+    beltLevel: "Black 5",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/4f2ed774.html",
     },
   },
   {
@@ -1426,6 +3295,16 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "e151c916",
+    name: "Opnus MMXII",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Black",
+    beltLevel: "Black 4",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/e151c916.html",
+    },
+  },
+  {
     id: "5cba063b",
     name: "Robur Disc Detainer Safe Deposit Lock",
     mechanisms: ["Disc detainer"],
@@ -1433,6 +3312,17 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 2",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/5cba063b.html",
+    },
+  },
+  {
+    id: "db63c882",
+    name: "Rosengrens 32A81S / Rosengrens 32C81P",
+    version: "triangular central posts and many False gates",
+    mechanisms: ["Disc detainer"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/db63c882.html",
     },
   },
   {
@@ -1477,6 +3367,36 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     },
   },
   {
+    id: "284bf0b0",
+    name: "UrbanAlps Stealth Key SK2",
+    mechanisms: ["Lever/sidebar"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/284bf0b0.html",
+    },
+  },
+  {
+    id: "23437955",
+    name: "WEST 917",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/23437955.html",
+    },
+  },
+  {
+    id: "ca6c2e4c",
+    name: "WEST 941",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 3",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/ca6c2e4c.html",
+    },
+  },
+  {
     id: "e718b140",
     name: "Western Electric 30B",
     mechanisms: ["Lever"],
@@ -1494,6 +3414,39 @@ const lockCatalog: Omit<LockRecord, "status" | "picked">[] = [
     beltLevel: "Black 5",
     resourceLinks: {
       lpu: "https://lpubelts.com/locks/5a4310d5.html",
+    },
+  },
+  {
+    id: "d1a5cd90",
+    name: "Winkhaus X-Tra",
+    version: "≥13 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/d1a5cd90.html",
+    },
+  },
+  {
+    id: "a8e79394",
+    name: "Yanai R 2200M",
+    version: ">= 17 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 2",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/a8e79394.html",
+    },
+  },
+  {
+    id: "a974eb0c",
+    name: "Yanai R 2200M",
+    version: "14-16 pins",
+    mechanisms: ["Dimple"],
+    belt: "Black",
+    beltLevel: "Black 1",
+    resourceLinks: {
+      lpu: "https://lpubelts.com/locks/a974eb0c.html",
     },
   },
   {
@@ -1597,6 +3550,8 @@ const ownedLockIds = new Set([
   "da09d849",
   "e4bb0668",
   "07034c0f",
+  "626da374",
+  "07bc680a",
 ]);
 const pickedLockIds = new Set([
   "07034c0f",

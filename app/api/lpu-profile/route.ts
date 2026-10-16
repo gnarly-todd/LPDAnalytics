@@ -1,5 +1,6 @@
 import type { Belt, LockRecord } from "../../data";
 import { fetchLpuUser, LpuRateLimitError } from "../../lpu-request";
+import { profileCollections } from "../../insights-model";
 
 const GITHUB_PAGES_ORIGIN = "https://gnarly-todd.github.io";
 const LPU_DATA =
@@ -35,6 +36,12 @@ type LpuUserResponse = {
       own?: unknown;
       wishlist?: unknown;
       picked?: unknown;
+      recorded?: unknown;
+      recordedLocks?: unknown;
+      scorecard?: unknown;
+      safelocksOwn?: unknown;
+      safelocksCracked?: unknown;
+      safelocksWishlist?: unknown;
     };
   };
 };
@@ -47,18 +54,28 @@ const publicProfiles = new Map<string, { expires: number; body: string; fetchedA
 const pendingProfiles = new Map<string, Promise<Response>>();
 async function getPublicProfile(profileId: string): Promise<Response> {
   const cached = publicProfiles.get(profileId);
-  if (cached && cached.expires > Date.now()) return new Response(cached.body, { headers: { "X-LPU-Fetched-At": String(cached.fetchedAt) } });
+  if (cached && cached.expires > Date.now())
+    return new Response(cached.body, { headers: { "X-LPU-Fetched-At": String(cached.fetchedAt) } });
   let pending = pendingProfiles.get(profileId);
   if (!pending) {
-    pending = fetchLpuUser(profileId).then(async (response) => {
-      if (response.ok) {
-        if (publicProfiles.size >= 200) publicProfiles.delete(publicProfiles.keys().next().value!);
-        const fetchedAt = Date.now();
-        publicProfiles.set(profileId, { expires: fetchedAt + 30_000, body: await response.clone().text(), fetchedAt });
-        response = new Response(await response.text(), { headers: { "X-LPU-Fetched-At": String(fetchedAt) } });
-      }
-      return response;
-    }).finally(() => pendingProfiles.delete(profileId));
+    pending = fetchLpuUser(profileId)
+      .then(async (response) => {
+        if (response.ok) {
+          if (publicProfiles.size >= 200)
+            publicProfiles.delete(publicProfiles.keys().next().value!);
+          const fetchedAt = Date.now();
+          publicProfiles.set(profileId, {
+            expires: fetchedAt + 30_000,
+            body: await response.clone().text(),
+            fetchedAt,
+          });
+          response = new Response(await response.text(), {
+            headers: { "X-LPU-Fetched-At": String(fetchedAt) },
+          });
+        }
+        return response;
+      })
+      .finally(() => pendingProfiles.delete(profileId));
     pendingProfiles.set(profileId, pending);
   }
   return (await pending).clone();
@@ -72,8 +89,12 @@ const corsHeaders = (origin: string | null): Record<string, string> =>
 const json = (body: Record<string, unknown>, status: number, origin: string | null) =>
   Response.json(body, {
     status,
-    headers: { "Cache-Control": "no-store", ...corsHeaders(origin),
-      ...(status === 429 && typeof body.retryAt === "number" ? { "Retry-After": String(Math.max(1, Math.ceil((body.retryAt - Date.now()) / 1000))) } : {}),
+    headers: {
+      "Cache-Control": "no-store",
+      ...corsHeaders(origin),
+      ...(status === 429 && typeof body.retryAt === "number"
+        ? { "Retry-After": String(Math.max(1, Math.ceil((body.retryAt - Date.now()) / 1000))) }
+        : {}),
     },
   });
 
@@ -93,10 +114,15 @@ async function getCatalog() {
   catalogPromise ??= fetch(LPU_DATA, {
     headers: { "User-Agent": "todd-lock-analytics-profile-loader" },
     signal: AbortSignal.timeout(20_000),
-  }).then(async (response) => {
-    if (!response.ok) throw new Error(`LPU catalog request failed (${response.status}).`);
-    return (await response.json()) as LpuEntry[];
-  }).catch((error) => { catalogPromise = undefined; throw error; });
+  })
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`LPU catalog request failed (${response.status}).`);
+      return (await response.json()) as LpuEntry[];
+    })
+    .catch((error) => {
+      catalogPromise = undefined;
+      throw error;
+    });
   return catalogPromise;
 }
 
@@ -199,7 +225,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [profileResponse, catalog] = await Promise.all([getPublicProfile(parsed.id), getCatalog()]);
+    const [profileResponse, catalog] = await Promise.all([
+      getPublicProfile(parsed.id),
+      getCatalog(),
+    ]);
 
     if (profileResponse.status === 404) {
       return reply({ message: "That LPU profile does not exist or is not public." }, 404);
@@ -212,7 +241,11 @@ export async function GET(request: Request) {
       throw new Error("LPU profile response did not match the requested user.");
     }
     const collections = profile.data.collections;
-    if (!Array.isArray(collections?.picked) || !Array.isArray(collections?.own) || !Array.isArray(collections?.wishlist)) {
+    if (
+      !Array.isArray(collections?.picked) ||
+      !Array.isArray(collections?.own) ||
+      !Array.isArray(collections?.wishlist)
+    ) {
       throw new Error("LPU profile response is missing collection data.");
     }
     const ownedIds = collectionStrings(collections.own);
@@ -255,7 +288,10 @@ export async function GET(request: Request) {
           name: displayName,
           url: canonicalUrl,
           locks,
-          refreshedAt: newYorkTimestamp(Number(profileResponse.headers.get("X-LPU-Fetched-At")) || Date.now()),
+          collections: profileCollections(collections),
+          refreshedAt: newYorkTimestamp(
+            Number(profileResponse.headers.get("X-LPU-Fetched-At")) || Date.now(),
+          ),
         },
       },
       200,
@@ -265,7 +301,10 @@ export async function GET(request: Request) {
       return reply({ message: error.message, retryAt: error.retryAt }, 429);
     console.error("LPU profile loading failed", error);
     return reply(
-      { message: "LPU's public profile service is temporarily unavailable. Please try again shortly." },
+      {
+        message:
+          "LPU's public profile service is temporarily unavailable. Please try again shortly.",
+      },
       502,
     );
   }

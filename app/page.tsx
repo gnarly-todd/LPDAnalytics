@@ -2,7 +2,45 @@
 
 import WishlistOwnerTable from "./wishlist-owner-table";
 import ProfileNameInput from "./profile-name-input";
-import { checkLpuBudget, fetchLpuUser, LpuRateLimitError, recordLpuCooldown, retryAtFromHeaders, readProfileCache, writeProfileCache, removeProfileCache } from "./lpu-request";
+import {
+  HomeSummary,
+  ScreenHeading,
+  ScreenMenu,
+  screenHref,
+  useScreenNavigation,
+  type ScreenId,
+  type NavigateScreen,
+} from "./screen-navigation";
+import { MechanismCoverageCards } from "./collection-mobile";
+import {
+  ActivityStatus,
+  DataTimestamp,
+  useActivityTimestamps,
+  type ActivityTiming,
+} from "./activity-status";
+import {
+  InsightsProvider,
+  CommunityBenchmarks,
+  ExpandedInsights,
+  useCommunityInsights,
+} from "./community-insights";
+import {
+  challengeSuggestions,
+  formatInsightDate,
+  profileCollections,
+  profileMetric,
+  type ProfileCollections,
+} from "./insights-model";
+import {
+  checkLpuBudget,
+  fetchLpuUser,
+  LpuRateLimitError,
+  recordLpuCooldown,
+  retryAtFromHeaders,
+  readProfileCache,
+  writeProfileCache,
+  removeProfileCache,
+} from "./lpu-request";
 import "./wishlist-owner-table.css";
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -13,15 +51,14 @@ import {
   beltOrder,
   locks as defaultLocks,
   profileSnapshotDate,
+  profileCollectionsSnapshot,
   progression,
-  statusBenchmarks as communityStatusBenchmarks,
 } from "./data";
 const HOSTED_SITE_ORIGIN = "https://todd-lock-analytics.nicelife70117.chatgpt.site";
 const SOURCE_URL = "https://lpubelts.com/#/profile/84dULJFIN4bHIC1LxCiuvBCSqT43?name=todd";
 const LPU_DATA_URL =
   "https://raw.githubusercontent.com/Lockpickers-United/lpu-belt-explorer/main/src/data/data.json";
 const LPU_STATS_URL = "https://lpubelts.com/#/stats";
-const LPU_STATS_SNAPSHOT = "September 2, 2026";
 const DEFAULT_PROFILE_ID = "84dULJFIN4bHIC1LxCiuvBCSqT43";
 const SAVED_PROFILES_KEY = "todd-lock-analytics-profiles-v1";
 const ACTIVE_PROFILE_KEY = "todd-lock-analytics-active-profile-v1";
@@ -55,23 +92,13 @@ const formatNewYorkSnapshot = (date = new Date()) => {
 };
 const bluePlusBelts = new Set<Belt>(["Blue", "Purple", "Brown", "Red", "Black"]);
 const redAndBlackBelts = new Set<Belt>(["Red", "Black"]);
-const lpuCatalog = { ranked: 852, all: 964, unranked: 112 };
-const lpuMemberBelts = [
-  {
-    platform: "Discord",
-    counts: [411, 769, 1449, 721, 350, 164, 112, 77, 191],
-  },
-  {
-    platform: "Reddit",
-    counts: [1315, 2343, 3222, 1222, 417, 177, 106, 74, 152],
-  },
-];
 type LoadedProfile = {
   id: string;
   name: string;
   url: string;
   locks: LockRecord[];
   refreshedAt: string;
+  collections?: ProfileCollections;
 };
 
 type LpuProfileApiResult = {
@@ -84,7 +111,17 @@ type LpuUserResponse = {
   data?: {
     userId?: string;
     displayName?: string;
-    collections?: { own?: unknown; wishlist?: unknown; picked?: unknown };
+    collections?: {
+      own?: unknown;
+      wishlist?: unknown;
+      picked?: unknown;
+      recorded?: unknown;
+      recordedLocks?: unknown;
+      scorecard?: unknown;
+      safelocksOwn?: unknown;
+      safelocksCracked?: unknown;
+      safelocksWishlist?: unknown;
+    };
   };
 };
 
@@ -103,6 +140,7 @@ const defaultProfile: LoadedProfile = {
   name: "Todd",
   url: SOURCE_URL,
   locks: defaultLocks,
+  collections: profileCollections(profileCollectionsSnapshot),
   refreshedAt: profileSnapshotDate,
 };
 
@@ -184,17 +222,6 @@ function deriveProfile(profile: LoadedProfile) {
     owned: ownedLocks.filter((lock) => lock.belt === belt).length,
     picked: ownedLocks.filter((lock) => lock.belt === belt && lock.picked).length,
   }));
-  const statusBenchmarks = communityStatusBenchmarks.map((item) => ({
-    ...item,
-    user:
-      item.label === "Owned"
-        ? ownedLocks.length
-        : item.label === "Picked"
-          ? ownedPicked
-          : item.label === "Wishlist"
-            ? wishlistLocks.length
-            : 0,
-  }));
 
   return {
     profile,
@@ -214,7 +241,6 @@ function deriveProfile(profile: LoadedProfile) {
     ownedMedian,
     percentOfOwned,
     pickedByBelt,
-    statusBenchmarks,
   };
 }
 
@@ -236,11 +262,14 @@ function isValidLpuProfileUrl(value: string) {
 }
 
 function stringIds(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function normalizeBelt(belt: string): { belt: Belt; beltLevel?: LockRecord["beltLevel"] } {
-  if (/^Black [1-5]$/.test(belt)) return { belt: "Black", beltLevel: belt as LockRecord["beltLevel"] };
+  if (/^Black [1-5]$/.test(belt))
+    return { belt: "Black", beltLevel: belt as LockRecord["beltLevel"] };
   return { belt: beltOrder.includes(belt as Belt) ? (belt as Belt) : "Unranked" };
 }
 
@@ -252,24 +281,37 @@ async function fetchLpuProfileFromGithubPages(profileUrl: string): Promise<Loade
 
   const response = await fetchLpuUser(profileId);
 
-  if (response?.status === 404) throw new Error("That LPU profile does not exist or is not public.");
+  if (response?.status === 404)
+    throw new Error("That LPU profile does not exist or is not public.");
   if (!response?.ok) throw new Error("LPU profile data could not be loaded. Please try again.");
   const profile = (await response.json()) as LpuUserResponse;
 
-  if (profile.data?.userId !== profileId) throw new Error("LPU profile data did not match the requested profile.");
+  if (profile.data?.userId !== profileId)
+    throw new Error("LPU profile data did not match the requested profile.");
   const collections = profile.data.collections;
-  if (!Array.isArray(collections?.own) || !Array.isArray(collections?.wishlist) || !Array.isArray(collections?.picked))
-    throw new Error("The LPU API returned incomplete collection data. Your saved snapshot has been kept.");
+  if (
+    !Array.isArray(collections?.own) ||
+    !Array.isArray(collections?.wishlist) ||
+    !Array.isArray(collections?.picked)
+  )
+    throw new Error(
+      "The LPU API returned incomplete collection data. Your saved snapshot has been kept.",
+    );
   const ownedIds = stringIds(collections.own);
   const wishlistIds = stringIds(collections?.wishlist);
   const ownedSet = new Set(ownedIds);
   const pickedIds = new Set(stringIds(collections?.picked).filter((id) => ownedSet.has(id)));
   const selectedIds = new Set([...ownedIds, ...wishlistIds]);
-  const catalogResponse = await fetch(LPU_DATA_URL, { cache: "force-cache", signal: AbortSignal.timeout(20_000) });
-  if (!catalogResponse.ok) throw new Error("The LPU lock catalog could not be loaded. Please try again.");
+  const catalogResponse = await fetch(LPU_DATA_URL, {
+    cache: "force-cache",
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!catalogResponse.ok)
+    throw new Error("The LPU lock catalog could not be loaded. Please try again.");
   const catalog = (await catalogResponse.json()) as LpuCatalogEntry[];
   const selected = catalog.filter((entry) => selectedIds.has(entry.id));
-  if (selected.length !== selectedIds.size) throw new Error("The profile references locks missing from the LPU catalog.");
+  if (selected.length !== selectedIds.size)
+    throw new Error("The profile references locks missing from the LPU catalog.");
 
   const fallbackName = new URLSearchParams(parsed.hash.split("?")[1] || "").get("name")?.trim();
   return {
@@ -277,6 +319,7 @@ async function fetchLpuProfileFromGithubPages(profileUrl: string): Promise<Loade
     name: profile.data.displayName?.trim() || fallbackName || "LPU profile",
     url: `https://lpubelts.com/#/profile/${profileId}`,
     refreshedAt: formatNewYorkSnapshot(),
+    collections: profileCollections(collections),
     locks: selected.map((entry) => ({
       id: entry.id,
       name: entry.makeModels
@@ -321,10 +364,12 @@ function fetchLpuProfile(profileUrl: string): Promise<LoadedProfile> {
   const key = new URL(profileUrl).hash.split("?")[0];
   let pending = pendingProfileLoads.get(key);
   if (!pending) {
-    pending = requestLpuProfile(profileUrl).then((loaded) => {
-      writeProfileCache(loaded);
-      return loaded;
-    }).finally(() => pendingProfileLoads.delete(key));
+    pending = requestLpuProfile(profileUrl)
+      .then((loaded) => {
+        writeProfileCache(loaded);
+        return loaded;
+      })
+      .finally(() => pendingProfileLoads.delete(key));
     pendingProfileLoads.set(key, pending);
   }
   return pending;
@@ -675,71 +720,8 @@ function BeltChart({ onSelect }: { onSelect: (belt: Belt) => void }) {
 }
 
 function BenchmarkChart() {
-  const { profile, statusBenchmarks } = useProfileAnalytics();
-  const max = Math.max(
-    1,
-    ...statusBenchmarks.flatMap((item) => [item.user, item.average, item.topTen]),
-  );
-  const axisStep = max / 4;
-  return (
-    <article className="panel benchmark-panel">
-      <div className="panel-title">
-        <div>
-          <p className="eyebrow">Profile comparison</p>
-          <h3>Collection status</h3>
-        </div>
-        <span className="panel-badge">LPU profile data</span>
-      </div>
-      <div className="chart-legend-inline">
-        <span>
-          <i className="user" />
-          {profile.name}
-        </span>
-        <span>
-          <i className="average" />
-          Community avg.
-        </span>
-        <span>
-          <i className="top" />
-          Top 10 avg.
-        </span>
-      </div>
-      <div className="benchmark-chart">
-        <div className="benchmark-axis">
-          <span>{Math.round(max)}</span>
-          <span>{Math.round(axisStep * 3)}</span>
-          <span>{Math.round(axisStep * 2)}</span>
-          <span>{Math.round(axisStep)}</span>
-          <span>0</span>
-        </div>
-        {statusBenchmarks.map((item) => (
-          <div className="benchmark-group" key={item.label}>
-            <div className="benchmark-bars">
-              {[
-                ["user", item.user],
-                ["average", item.average],
-                ["top", item.topTen],
-              ].map(([kind, value]) => (
-                <div
-                  className={`benchmark-bar ${kind}`}
-                  key={kind}
-                  style={{ height: `${(Number(value) / max) * 100}%` }}
-                  title={`${item.label}: ${value}`}
-                >
-                  <span>{value}</span>
-                </div>
-              ))}
-            </div>
-            <strong>{item.label}</strong>
-          </div>
-        ))}
-      </div>
-      <p className="chart-note">
-        Owned and Wishlist are separate in this profile; Picked overlaps the Owned group. Benchmark
-        values are read from the profile comparison.
-      </p>
-    </article>
-  );
+  const { profile } = useProfileAnalytics();
+  return <CommunityBenchmarks profile={profile} />;
 }
 
 function PickingProgressChart() {
@@ -789,6 +771,8 @@ function PickingProgressChart() {
 }
 
 function MemberBeltContext() {
+  const { data } = useCommunityInsights();
+  const lpuMemberBelts = data.memberBelts;
   return (
     <article className="panel community-panel">
       <div className="panel-title">
@@ -813,7 +797,7 @@ function MemberBeltContext() {
                   <i
                     key={belt}
                     style={{
-                      width: `${(group.counts[index] / total) * 100}%`,
+                      width: `${(group.counts[index] / Math.max(1, total)) * 100}%`,
                       background: beltColors[belt],
                     }}
                     title={`${belt}: ${group.counts[index].toLocaleString()}`}
@@ -821,7 +805,8 @@ function MemberBeltContext() {
                 ))}
               </div>
               <p>
-                <strong>{((bluePlus / total) * 100).toFixed(1)}%</strong> are Blue Belt or above
+                <strong>{((bluePlus / Math.max(1, total)) * 100).toFixed(1)}%</strong> are Blue Belt
+                or above
               </p>
             </div>
           );
@@ -837,7 +822,8 @@ function MemberBeltContext() {
       </div>
       <p className="chart-note">
         Member belt records describe people; collection ranks describe locks. This is community
-        context, not a direct measure of collection difficulty.
+        context, not a direct measure of collection difficulty. Named belt categories are used;
+        separate Dan labels are excluded.
       </p>
     </article>
   );
@@ -905,7 +891,13 @@ function Heatmap() {
         </div>
         <span className="panel-badge">{ownedLocks.length} owned</span>
       </div>
-      <div className="heatmap-scroll">
+      <MechanismCoverageCards rows={rows} belts={displayBelts} colors={beltColors} />
+      <div
+        className="heatmap-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Lock mechanism heatmap, scroll horizontally for more columns"
+      >
         <div
           className="heatmap"
           style={{ gridTemplateColumns: `145px repeat(${displayBelts.length}, minmax(64px, 1fr))` }}
@@ -939,8 +931,15 @@ function Heatmap() {
       <div className="heatmap-insight">
         <Icon name="spark" />
         <p>
-          <strong>Pin-tumbler is the most common locking mechanism.</strong> Disc detainer is the
-          next most common, while Sidepins are concentrated in the higher belt ranks.
+          {rows.length ? (
+            <>
+              <strong>
+                {rows[0].mechanism} is the most represented mechanism in this collection.
+              </strong>{" "}
+            </>
+          ) : null}
+          Multi-mechanism locks count in each matching group. This view shows up to eight
+          mechanisms.
         </p>
       </div>
     </article>
@@ -1030,6 +1029,8 @@ function comparisonStatus(lock?: LockRecord) {
 }
 
 function ComparisonPage({
+  onNavigate,
+  timing,
   profiles,
   loading,
   error,
@@ -1037,6 +1038,8 @@ function ComparisonPage({
   onExit,
   onToggleTheme,
 }: {
+  onNavigate: NavigateScreen;
+  timing: ActivityTiming;
   profiles: LoadedProfile[] | null;
   loading: boolean;
   error: string;
@@ -1047,7 +1050,7 @@ function ComparisonPage({
   if (loading || !profiles || profiles.length !== 2) {
     return (
       <main className={`site-shell theme-${theme}`}>
-        <nav className="site-nav comparison-nav" aria-label="Comparison navigation">
+        <nav className="site-nav comparison-nav app-navigation" aria-label="Comparison navigation">
           <button className="brand brand-button" type="button" onClick={onExit}>
             <span>
               <Icon name="compare" size={17} />
@@ -1056,6 +1059,7 @@ function ComparisonPage({
             <small>Collection overview</small>
           </button>
           <div className="nav-actions">
+            <ScreenMenu current="compare" onNavigate={onNavigate} />
             <button className="source-link" type="button" onClick={onExit}>
               Back to collection
             </button>
@@ -1069,8 +1073,11 @@ function ComparisonPage({
           aria-live="polite"
         >
           <Icon name={error ? "search" : "refresh"} size={28} />
-          <h1>{error ? "Comparison unavailable" : "Loading both profiles…"}</h1>
+          <h1 id="screen-title" tabIndex={-1}>
+            {error ? "Comparison unavailable" : "Loading both profiles…"}
+          </h1>
           <p>{error || "Getting the latest saved profile data for this comparison."}</p>
+          <ActivityStatus label="Comparison load" timing={timing} />
           {error && (
             <button type="button" onClick={onExit}>
               Return to collection
@@ -1145,7 +1152,7 @@ function ComparisonPage({
 
   return (
     <main className={`site-shell theme-${theme}`}>
-      <nav className="site-nav comparison-nav" aria-label="Comparison navigation">
+      <nav className="site-nav comparison-nav app-navigation" aria-label="Comparison navigation">
         <button className="brand brand-button" type="button" onClick={onExit}>
           <span>
             <Icon name="compare" size={17} />
@@ -1154,6 +1161,7 @@ function ComparisonPage({
           <small>Side by side</small>
         </button>
         <div className="nav-actions">
+          <ScreenMenu current="compare" onNavigate={onNavigate} />
           <button className="source-link" type="button" onClick={onExit}>
             Back to collection
           </button>
@@ -1170,10 +1178,18 @@ function ComparisonPage({
       <section className="comparison-page" id="top">
         <header className="comparison-hero">
           <p className="eyebrow">Loaded profile comparison</p>
-          <h1>
+          <h1 id="screen-title" tabIndex={-1}>
             {left.profile.name} <span>vs</span> {right.profile.name}
           </h1>
           <p>Owned locks, picking progress, wishlists, belt coverage, and every tracked lock.</p>
+          <ActivityStatus label="Comparison load" timing={timing} />
+          <div className="comparison-snapshot-times">
+            {[left.profile, right.profile].map((item) => (
+              <p key={item.id}>
+                {item.name} data fetched <DataTimestamp value={item.refreshedAt} />
+              </p>
+            ))}
+          </div>
           <div className="comparison-source-links">
             {[left.profile, right.profile].map((item) => (
               <a key={item.id} href={item.url} target="_blank" rel="noreferrer">
@@ -1309,7 +1325,15 @@ function ComparisonPage({
             </div>
             <p>{comparisonLocks.length.toLocaleString()} distinct locks across both profiles.</p>
           </div>
-          <div className="comparison-lock-table-shell">
+          <p className="scroll-hint">
+            Swipe across to compare both profiles. Lock names stay visible.
+          </p>
+          <div
+            className="comparison-lock-table-shell"
+            tabIndex={0}
+            role="region"
+            aria-label="Compared lock statuses, scroll horizontally for both profiles"
+          >
             <table className="comparison-lock-table">
               <thead>
                 <tr>
@@ -1357,6 +1381,24 @@ function ComparisonPage({
 }
 
 export default function Home() {
+  return (
+    <InsightsProvider>
+      <HomeContent />
+    </InsightsProvider>
+  );
+}
+
+function HomeContent() {
+  const { screen, navigate } = useScreenNavigation();
+  const { data: communityData } = useCommunityInsights();
+  const lpuCatalog = {
+    all: communityData.catalog.length,
+    ranked: communityData.catalog.filter((entry) => entry.belt !== "Unranked").length,
+    unranked: communityData.catalog.filter((entry) => entry.belt === "Unranked").length,
+  };
+  const LPU_STATS_SNAPSHOT = formatInsightDate(
+    communityData.statsUpdatedAt || communityData.fetchedAt,
+  );
   const [activeProfile, setActiveProfile] = useState(defaultProfile);
   const analytics = useMemo(() => deriveProfile(activeProfile), [activeProfile]);
   const {
@@ -1367,7 +1409,6 @@ export default function Home() {
     ownedBluePlus,
     ownedRedAndBlack,
     ownedMultiMechanism,
-    ownedPicked,
     ownedRanked,
     wishlistBluePlus,
     beltCounts,
@@ -1389,6 +1430,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [refreshState, setRefreshState] = useState<"idle" | "loading" | "queued" | "error">("idle");
   const [refreshMessage, setRefreshMessage] = useState("");
+  const [refreshCheckedAt, setRefreshCheckedAt] = useState<number | null>(null);
   const [displayedSnapshotDate, setDisplayedSnapshotDate] = useState(profileSnapshotDate);
   const [savedProfiles, setSavedProfiles] = useState<SavedProfile[]>([builtInDefaultProfile]);
   const [comparisonSelections, setComparisonSelections] = useState<string[]>([]);
@@ -1404,8 +1446,23 @@ export default function Home() {
   const [loadNotice, setLoadNotice] = useState("");
   const [profileSaveMessage, setProfileSaveMessage] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
+  const profileActivity = useActivityTimestamps();
+  const comparisonActivity = useActivityTimestamps();
+  const refreshActivity = useActivityTimestamps();
+  const setProfileBusy = (value: boolean) => {
+    if (value) profileActivity.start();
+    else profileActivity.finish();
+    setProfileLoading(value);
+  };
+  const setComparisonBusy = (value: boolean) => {
+    if (value) comparisonActivity.start();
+    else comparisonActivity.finish();
+    setComparisonLoading(value);
+  };
+
   const challengeRef = useRef<HTMLElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileModalRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let defaultSaved = builtInDefaultProfile;
@@ -1450,13 +1507,17 @@ export default function Home() {
     }
     comparisonIds = [...new Set(comparisonIds)].slice(0, 2);
     setComparisonSelections(comparisonIds);
-    if (comparisonIds.length === 2) {
+    if (
+      comparisonIds.length === 2 &&
+      (window.location.hash === "#/compare" || !window.location.hash.startsWith("#/"))
+    ) {
+      navigate("compare");
       const comparisonItems = comparisonIds
         .map((id) => profiles.find((item) => item.id === id))
         .filter((item): item is SavedProfile => Boolean(item));
       if (comparisonItems.length === 2) {
         setComparisonRequested(true);
-        setComparisonLoading(true);
+        setComparisonBusy(true);
         void Promise.all(comparisonItems.map(loadSavedProfile))
           .then((loaded) => setComparisonProfiles(loaded))
           .catch((error: unknown) => {
@@ -1464,9 +1525,9 @@ export default function Home() {
               error instanceof Error ? error.message : "The selected profiles could not be loaded.",
             );
           })
-          .finally(() => setComparisonLoading(false));
+          .finally(() => setComparisonBusy(false));
       }
-    } else if (comparisonIds.length) {
+    } else if (comparisonIds.length === 1) {
       window.localStorage.removeItem(COMPARISON_PROFILE_IDS_KEY);
       setComparisonSelections([]);
     }
@@ -1479,13 +1540,21 @@ export default function Home() {
     if (cached) {
       setActiveProfile(cached);
       setDisplayedSnapshotDate(cached.refreshedAt);
-      setLoadNotice("Showing your saved profile snapshot. Use Refresh profile to request the latest data.");
+      setLoadNotice(
+        "Showing your saved profile snapshot. Use Refresh profile to request the latest data.",
+      );
       return;
     }
-    setActiveProfile(selected.id === DEFAULT_PROFILE_ID ? defaultProfile : { ...selected, locks: [], refreshedAt: "Not loaded" });
-    setDisplayedSnapshotDate(selected.id === DEFAULT_PROFILE_ID ? profileSnapshotDate : "Not loaded");
+    setActiveProfile(
+      selected.id === DEFAULT_PROFILE_ID
+        ? defaultProfile
+        : { ...selected, locks: [], refreshedAt: "Not loaded" },
+    );
+    setDisplayedSnapshotDate(
+      selected.id === DEFAULT_PROFILE_ID ? profileSnapshotDate : "Not loaded",
+    );
 
-    setProfileLoading(true);
+    setProfileBusy(true);
     void fetchLpuProfile(selected.url)
       .then((loaded) => {
         setActiveProfile(loaded);
@@ -1496,27 +1565,77 @@ export default function Home() {
         setProfileError(
           error instanceof Error ? error.message : "This profile could not be loaded.",
         );
-        setLoadNotice(error instanceof Error ? error.message : "This profile could not be loaded. Try Refresh profile again.");
+        setLoadNotice(
+          error instanceof Error
+            ? error.message
+            : "This profile could not be loaded. Try Refresh profile again.",
+        );
       })
-      .finally(() => setProfileLoading(false));
+      .finally(() => setProfileBusy(false));
   }, []);
 
   useEffect(() => {
     if (!profileMenuOpen) return;
-    const closeMenu = (event: MouseEvent) => {
+    const closeMenu = (event: PointerEvent) => {
       if (!profileMenuRef.current?.contains(event.target as Node)) setProfileMenuOpen(false);
     };
-    window.addEventListener("mousedown", closeMenu);
-    return () => window.removeEventListener("mousedown", closeMenu);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setProfileMenuOpen(false);
+        profileMenuRef.current?.querySelector("button")?.focus();
+      }
+    };
+    window.addEventListener("pointerdown", closeMenu);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeMenu);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
   }, [profileMenuOpen]);
 
   useEffect(() => {
     if (!addProfileOpen) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const closeModal = (event: KeyboardEvent) => {
       if (event.key === "Escape") setAddProfileOpen(false);
+      if (event.key !== "Tab") return;
+      const controls = Array.from(
+        profileModalRef.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
+        ) ?? [],
+      ).filter((element) => element.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        profileModalRef.current?.focus();
+        return;
+      }
+      if (
+        event.shiftKey &&
+        (document.activeElement === first ||
+          !profileModalRef.current?.contains(document.activeElement))
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last ||
+          !profileModalRef.current?.contains(document.activeElement))
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", closeModal);
-    return () => window.removeEventListener("keydown", closeModal);
+    return () => {
+      window.removeEventListener("keydown", closeModal);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus();
+      else profileMenuRef.current?.querySelector("button")?.focus();
+    };
   }, [addProfileOpen]);
 
   useEffect(() => {
@@ -1543,6 +1662,7 @@ export default function Home() {
     let cancelled = false;
 
     if (refreshResult === "queued" && runId && /^\d+$/.test(runId)) {
+      refreshActivity.start();
       setRefreshState("queued");
       setRefreshMessage("Profile refresh is running. This page will reload when it finishes.");
 
@@ -1556,7 +1676,10 @@ export default function Home() {
           };
 
           if (!response.ok) throw new Error("Unable to check refresh status.");
+          setRefreshCheckedAt(Date.now());
           if (result.status === "completed") {
+            refreshActivity.finish();
+            setRefreshState("idle");
             if (result.conclusion === "success") {
               setRefreshMessage("Refresh complete. Reloading the updated collection…");
               setDisplayedSnapshotDate(formatNewYorkSnapshot());
@@ -1631,8 +1754,7 @@ export default function Home() {
     });
   }, [locks, query, status, belt, mechanism, sort]);
 
-  const jumpToExplorer = () =>
-    document.getElementById("explorer")?.scrollIntoView({ behavior: "smooth" });
+  const jumpToExplorer = () => navigate("explorer");
   const selectBelt = (selected: Belt) => {
     setStatus("Owned");
     setBelt(selected);
@@ -1646,9 +1768,9 @@ export default function Home() {
     requestAnimationFrame(jumpToExplorer);
   };
   const chooseSurprise = () => {
-    const candidates = ownedLocks.filter((lock) =>
-      ["Purple", "Brown", "Red", "Black"].includes(lock.belt),
-    );
+    const candidates = challengeSuggestions(profile, communityData)
+      .slice(0, 6)
+      .map((item) => item.lock);
     if (!candidates.length) return;
     setSurprise(candidates[Math.floor(Math.random() * candidates.length)]);
     setChallengeRequest((request) => request + 1);
@@ -1682,6 +1804,8 @@ export default function Home() {
     window.setTimeout(() => setCopied(false), 1800);
   };
   const refreshProfile = async () => {
+    if (profileLoading || refreshState === "loading" || refreshState === "queued") return;
+    refreshActivity.start();
     setProfileMenuOpen(false);
     setRefreshState("loading");
     setRefreshMessage(`Refreshing ${profile.name} from LPU…`);
@@ -1692,12 +1816,14 @@ export default function Home() {
       setDisplayedSnapshotDate(loaded.refreshedAt);
       setLoadNotice("");
       setRefreshState("idle");
-      setRefreshMessage("");
+      setRefreshMessage(`${loaded.name} refreshed successfully.`);
     } catch (error) {
       setRefreshState("error");
       setRefreshMessage(
         error instanceof Error ? error.message : "This profile could not be refreshed.",
       );
+    } finally {
+      refreshActivity.finish();
     }
   };
 
@@ -1720,17 +1846,22 @@ export default function Home() {
     if (nextSelections.length === 2) {
       window.localStorage.setItem(COMPARISON_PROFILE_IDS_KEY, JSON.stringify(nextSelections));
       setProfileMenuOpen(false);
+      window.location.hash = "#/compare";
       window.location.reload();
     }
   };
 
-  const exitComparison = () => {
+  const leaveComparison = (next: ScreenId) => {
     window.localStorage.removeItem(COMPARISON_PROFILE_IDS_KEY);
     setComparisonRequested(false);
     setComparisonProfiles(null);
     setComparisonSelections([]);
-    window.location.reload();
+    navigate(next);
+    window.requestAnimationFrame(() =>
+      document.getElementById("screen-title")?.focus({ preventScroll: true }),
+    );
   };
+  const exitComparison = () => leaveComparison("home");
 
   const saveAddedProfiles = (profiles: SavedProfile[]) => {
     window.localStorage.setItem(
@@ -1774,8 +1905,8 @@ export default function Home() {
     event.preventDefault();
     const form = event.currentTarget;
     const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    const addWithoutViewing = !editingProfile &&
-      submitter instanceof HTMLButtonElement && submitter.value === "add-only";
+    const addWithoutViewing =
+      !editingProfile && submitter instanceof HTMLButtonElement && submitter.value === "add-only";
     setProfileError("");
     setProfileSaveMessage("");
     if (!isValidLpuProfileUrl(profileUrlInput)) {
@@ -1785,7 +1916,7 @@ export default function Home() {
       return;
     }
 
-    setProfileLoading(true);
+    setProfileBusy(true);
     try {
       const loaded = await fetchLpuProfile(profileUrlInput);
       const conflict = savedProfiles.find(
@@ -1845,26 +1976,30 @@ export default function Home() {
         setSavedProfiles(nextProfiles);
         setEditingProfile(null);
         setProfileUrlInput("");
-        setProfileLoading(false);
+        setProfileBusy(false);
         setProfileSaveMessage(
           conflict
             ? `${loaded.name} is already saved and has been refreshed. You can add another profile.`
             : `${loaded.name} added. You can add another profile.`,
         );
-        window.requestAnimationFrame(() => form.querySelector<HTMLInputElement>("#profile-url")?.focus());
+        window.requestAnimationFrame(() =>
+          form.querySelector<HTMLInputElement>("#profile-url")?.focus(),
+        );
         return;
       }
       window.location.reload();
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : "This profile could not be saved.");
-      setProfileLoading(false);
+      setProfileBusy(false);
     }
   };
 
   const refreshInProgress = refreshState === "loading" || refreshState === "queued";
-  if (comparisonRequested) {
+  if (screen === "compare" && comparisonRequested) {
     return (
       <ComparisonPage
+        onNavigate={leaveComparison}
+        timing={comparisonActivity.timing}
         profiles={comparisonProfiles}
         loading={comparisonLoading}
         error={comparisonError}
@@ -1878,23 +2013,29 @@ export default function Home() {
   return (
     <ProfileContext.Provider value={analytics}>
       <main className={`site-shell theme-${theme}`}>
-        <nav className="site-nav" aria-label="Primary navigation">
-          <a className="brand" href="#top">
+        <nav className="site-nav app-navigation" aria-label="Primary navigation">
+          <a
+            className="brand"
+            href={screenHref("home")}
+            aria-label={`${profile.name} collection home`}
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              navigate("home");
+            }}
+          >
             <span>
               <Icon name="lock" size={17} />
             </span>
             <strong>{profile.name} / LPU</strong>
             <small>Collection overview</small>
           </a>
-          <div className="nav-links" aria-label="Page sections">
-            <a href="#overview">Overview</a>
-            <a href="#analysis">Analysis</a>
-            <a href="#community">Community</a>
-            <a href="#findings">Insights</a>
-            <a href="#explorer">Explorer</a>
-            <a href="#wishlist-owners">Wishlist owners</a>
-          </div>
           <div className="nav-actions">
+            <ScreenMenu
+              current={screen}
+              onNavigate={navigate}
+              onOpen={() => setProfileMenuOpen(false)}
+            />
             <a className="source-link" href={profile.url} target="_blank" rel="noreferrer">
               Source <Icon name="external" size={15} />
             </a>
@@ -2025,15 +2166,36 @@ export default function Home() {
           </div>
         </nav>
 
-        {(loadNotice || refreshMessage) && (
-          <div className="profile-load-notice" role={refreshState === "error" ? "alert" : "status"}>
-            <p>{refreshMessage || loadNotice}</p>
-            <button className="secondary-button" type="button" onClick={() => void refreshProfile()} disabled={refreshInProgress || profileLoading}>
-              {refreshInProgress ? "Refreshing…" : "Refresh profile"}
-            </button>
+        <div className="profile-load-notice" role={refreshState === "error" ? "alert" : "status"}>
+          <p>
+            {refreshMessage || loadNotice || (
+              <>
+                Profile data fetched <DataTimestamp value={displayedSnapshotDate} />
+              </>
+            )}
+          </p>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => void refreshProfile()}
+            disabled={refreshInProgress || profileLoading}
+            aria-busy={refreshInProgress}
+          >
+            {refreshInProgress ? "Refreshing…" : "Refresh profile"}
+          </button>
+        </div>
+
+        {!addProfileOpen && (
+          <div className="profile-activity-summary">
+            <ActivityStatus label="Profile load" timing={profileActivity.timing} />
+            <ActivityStatus label="Profile refresh" timing={refreshActivity.timing} />
+            {refreshCheckedAt !== null && (
+              <p className="activity-stamps">
+                Refresh status fetched <DataTimestamp value={refreshCheckedAt} />
+              </p>
+            )}
           </div>
         )}
-
         {addProfileOpen && (
           <div
             className="profile-modal-backdrop"
@@ -2042,6 +2204,8 @@ export default function Home() {
           >
             <section
               className="profile-modal"
+              ref={profileModalRef}
+              tabIndex={-1}
               role="dialog"
               aria-modal="true"
               aria-labelledby="profile-editor-title"
@@ -2075,6 +2239,10 @@ export default function Home() {
                   disabled={profileLoading}
                   invalid={Boolean(profileError)}
                 />
+                <ActivityStatus
+                  label={editingProfile ? "Profile edit" : "Profile load"}
+                  timing={profileActivity.timing}
+                />
                 {profileError && (
                   <p className="profile-error" id="profile-error" role="alert">
                     {profileError}
@@ -2093,7 +2261,13 @@ export default function Home() {
                   >
                     {profileSaveMessage && !editingProfile ? "Done" : "Cancel"}
                   </button>
-                  <button type="submit" name="profile-action" value="add-view" className="primary-button" disabled={profileLoading}>
+                  <button
+                    type="submit"
+                    name="profile-action"
+                    value="add-view"
+                    className="primary-button"
+                    disabled={profileLoading}
+                  >
                     {profileLoading
                       ? "Loading profile…"
                       : editingProfile
@@ -2101,8 +2275,13 @@ export default function Home() {
                         : "Add and view profile"}
                   </button>
                   {!editingProfile && (
-                    <button type="submit" name="profile-action" value="add-only"
-                      className="secondary-button" disabled={profileLoading}>
+                    <button
+                      type="submit"
+                      name="profile-action"
+                      value="add-only"
+                      className="secondary-button"
+                      disabled={profileLoading}
+                    >
                       {profileLoading ? "Loading profile…" : "Add profile only"}
                     </button>
                   )}
@@ -2118,459 +2297,584 @@ export default function Home() {
           </div>
         )}
 
-        <header className="hero" id="top">
-          <div className="hero-copy">
-            <div className="status-chip">
-              <i /> Daily profile refresh · {displayedSnapshotDate}
-            </div>
-            <p className="eyebrow">Lock Pickers United collection profile</p>
-            <h1>
-              A collection built for <em>depth, range,</em> and the next challenge.
-            </h1>
-            <p className="hero-lede">
-              A summary of {profile.name}’s LPU profile: {ownedLocks.length} owned locks analyzed,
-              with {wishlistLocks.length} wishlist locks tracked separately.
-            </p>
-            <div className="hero-actions">
-              <button className="primary-button" onClick={jumpToExplorer}>
-                Explore owned locks <Icon name="arrow" />
-              </button>
-              <button
-                className="secondary-button"
-                onClick={chooseSurprise}
-                aria-controls="challenge-result"
-              >
-                <Icon name="shuffle" /> Find a challenge
-              </button>
-            </div>
-            <div className="hero-meta">
-              <div>
-                <span>Owned median</span>
-                <BeltPill belt={ownedMedian} />
+        <div className="app-screen" data-screen={screen}>
+          {screen === "home" && (
+            <HomeSummary
+              name={profile.name}
+              owned={ownedLocks.length}
+              wishlist={wishlistLocks.length}
+              picked={profileMetric(profile, "picked")}
+              mechanisms={mechanismCounts.length}
+              refreshedAt={displayedSnapshotDate}
+              loading={profileLoading}
+              onNavigate={navigate}
+            />
+          )}
+          {screen !== "home" && screen !== "overview" && (
+            <ScreenHeading screen={screen} onNavigate={navigate} />
+          )}
+          {screen === "compare" && (
+            <section className="compare-profile-screen" aria-label="Choose profiles to compare">
+              <h2>Select two profiles</h2>
+              <p>The comparison opens when you choose the second profile.</p>
+              <div className="compare-profile-options">
+                {savedProfiles.map((item) => {
+                  const selected = comparisonSelections.includes(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={selected}
+                      disabled={!selected && comparisonSelections.length >= 2}
+                      onClick={() => toggleComparisonProfile(item)}
+                    >
+                      <span>{item.name}</span>
+                      <strong>{selected ? "Selected" : "Select"}</strong>
+                    </button>
+                  );
+                })}
               </div>
-              <div>
-                <span>Wishlist</span>
-                <strong>
-                  {wishlistLocks.length} <small>tracked separately</small>
-                </strong>
-              </div>
-            </div>
-          </div>
-          <CollectionSnapshot />
-        </header>
-
-        {surprise && (
-          <aside
-            className="surprise-card"
-            id="challenge-result"
-            ref={challengeRef}
-            tabIndex={-1}
-            aria-live="polite"
-          >
-            <div className="surprise-icon">
-              <Icon name="spark" />
-            </div>
-            <div>
-              <p className="eyebrow">Owned challenge draw</p>
-              <h3>{surprise.name}</h3>
-              <p>{surprise.version || surprise.mechanisms.join(" + ")}</p>
-            </div>
-            <BeltPill belt={surprise.belt} label={surprise.beltLevel} />
-            <button onClick={chooseSurprise}>
-              <Icon name="shuffle" /> Draw again
-            </button>
-            <button
-              className="surprise-close"
-              onClick={() => setSurprise(null)}
-              aria-label="Close challenge"
-            >
-              ×
-            </button>
-          </aside>
-        )}
-
-        <section className="section overview-section" id="overview">
-          <SectionHeading
-            eyebrow="At a glance"
-            title="The owned collection, quantified"
-            copy={`Core belt-rank and locking-mechanism counts use the ${ownedLocks.length} locks ${profile.name} owns. Wishlist locks remain visible as a separate planning list.`}
-          />
-          <div className="metric-grid">
-            <MetricCard
-              label="Owned locks"
-              value={String(ownedLocks.length)}
-              detail={`${wishlistLocks.length} more on wishlist`}
-              tone="#6ee7f2"
-              icon="lock"
-            />
-            <MetricCard
-              label="Blue or higher"
-              value={String(ownedBluePlus)}
-              detail={`${percentOfOwned(ownedBluePlus)}% of owned locks`}
-              tone="#6482ff"
-              icon="chart"
-            />
-            <MetricCard
-              label="Red & Black Belts"
-              value={String(ownedRedAndBlack)}
-              detail={`${percentOfOwned(ownedRedAndBlack)}% of owned locks`}
-              tone="#e65d72"
-              icon="spark"
-            />
-            <MetricCard
-              label="Multi-mechanism locks"
-              value={String(ownedMultiMechanism)}
-              detail={`${percentOfOwned(ownedMultiMechanism)}% of owned locks`}
-              tone="#a875f2"
-              icon="shuffle"
-            />
-          </div>
-          <div className="insight-strip">
-            <div>
-              <span className="insight-number">01</span>
-              <p>
-                <strong>Blue Belt median.</strong> {ownedBluePlus} owned locks are ranked Blue Belt
-                or above, and the median owned rank is {ownedMedian} Belt.
-              </p>
-            </div>
-            <div>
-              <span className="insight-number">02</span>
-              <p>
-                <strong>Broad range of locking mechanisms.</strong> {mechanismCounts.length} labels
-                cover Pin-tumbler, Disc detainer, Dimple, Slider, Sidepins, Lever, and more.
-              </p>
-            </div>
-            <button onClick={copySummary}>
-              <Icon name="copy" /> {copied ? "Copied" : "Copy summary"}
-            </button>
-          </div>
-        </section>
-
-        <section className="section" id="analysis">
-          <SectionHeading
-            eyebrow="Owned-only analysis"
-            title="Owned locks by belt rank and locking mechanism"
-            copy="Belt, locking-mechanism, manufacturer, and matrix charts exclude wishlist locks. The collection-status chart remains a profile-level comparison."
-          />
-          <div className="dashboard-grid">
-            <BeltChart onSelect={selectBelt} />
-            <BenchmarkChart />
-            <RankedBars
-              eyebrow="Lock designs"
-              title="Locking mechanisms"
-              data={mechanismCounts.slice(0, 8)}
-              onSelect={selectMechanism}
-            />
-            <RankedBars
-              eyebrow="Manufacturers"
-              title="Most common manufacturers"
-              data={brandCounts.slice(0, 8)}
-            />
-            <Heatmap />
-            {profile.id === DEFAULT_PROFILE_ID ? (
-              <Timeline />
-            ) : (
-              <article className="panel timeline-panel">
-                <div className="panel-heading">
-                  <div>
-                    <p className="eyebrow">Picker progression</p>
-                    <h3>Belt-award timeline</h3>
-                  </div>
-                </div>
-                <p className="profile-data-note">
-                  The public LPU profile feed does not expose belt-award dates for this profile.
-                </p>
-              </article>
-            )}
-          </div>
-        </section>
-
-        <section className="section community-section" id="community">
-          <SectionHeading
-            eyebrow="LPU community context"
-            title="Collection depth and picking progress in context"
-            copy={`${profile.name}’s owned and picked counts are compared with the public LPU Stats dashboard. Member belt distributions are shown separately because a picker’s belt and a lock’s rank measure different things.`}
-          />
-          <div className="community-metrics">
-            <article className="community-metric">
-              <span>Ranked catalog coverage</span>
-              <strong>{((ownedRanked / lpuCatalog.ranked) * 100).toFixed(1)}%</strong>
-              <p>
-                {ownedRanked} owned ranked entries out of {lpuCatalog.ranked} ranked LPU locks
-              </p>
-            </article>
-            <article className="community-metric">
-              <span>Owned versus average</span>
-              <strong>{(ownedLocks.length / 14).toFixed(1)}×</strong>
-              <p>{ownedLocks.length} owned compared with the LPU collection average of 14</p>
-            </article>
-            <article className="community-metric">
-              <span>Picked versus average</span>
-              <strong>{(ownedPicked / 11).toFixed(1)}×</strong>
-              <p>{ownedPicked} picked, matching the LPU collection average of 11</p>
-            </article>
-            <article className="community-metric">
-              <span>Wishlist versus average</span>
-              <strong>{(wishlistLocks.length / 8).toFixed(1)}×</strong>
-              <p>{wishlistLocks.length} wishlist entries compared with the LPU average of 8</p>
-            </article>
-          </div>
-          <div className="community-grid">
-            <PickingProgressChart />
-            <MemberBeltContext />
-          </div>
-          <div className="community-source-note">
-            <p>
-              LPU catalog snapshot: {lpuCatalog.all} total locks, including {lpuCatalog.ranked}{" "}
-              ranked and {lpuCatalog.unranked} unranked. Community figures viewed{" "}
-              {LPU_STATS_SNAPSHOT}.
-            </p>
-            <a href={LPU_STATS_URL} target="_blank" rel="noreferrer">
-              Open LPU Stats <Icon name="external" size={15} />
-            </a>
-          </div>
-        </section>
-
-        <section className="section findings-section" id="findings">
-          <SectionHeading
-            eyebrow="Interpretation"
-            title="What the owned data says"
-            copy="The owned collection is concentrated at Blue Belt and above, while the separate wishlist includes even more higher-ranked locks."
-          />
-          <div className="findings-grid">
-            <InsightCard
-              index="01"
-              title="Higher-ranked owned locks"
-              copy={`${ownedBluePlus} owned locks are ranked Blue Belt or above, including ${beltCounts.Black} Black Belt locks.`}
-              stat={`${ownedBluePlus} locks`}
-            />
-            <InsightCard
-              index="02"
-              title="Pin-tumbler foundation"
-              copy={`${mechanismCounts[0]?.label ?? "No locking mechanism"} is the most common locking-mechanism label in the owned collection.`}
-              stat={`${mechanismCounts[0]?.value ?? 0} locks`}
-            />
-            <InsightCard
-              index="03"
-              title="Higher-ranked wishlist locks"
-              copy={`${wishlistBluePlus} of ${wishlistLocks.length} wishlist locks are ranked Blue Belt or above.`}
-              stat={`${wishlistBluePlus} locks`}
-            />
-          </div>
-        </section>
-
-        <section className="section explorer-section" id="explorer">
-          <div className="explorer-heading">
-            <SectionHeading
-              eyebrow="Interactive explorer"
-              title="Browse owned and wishlist locks"
-              copy="Choose owned, wishlist, or all locks, then filter by belt rank, locking mechanism, or keyword."
-            />
-            <button className="export-button" onClick={exportCsv}>
-              <Icon name="download" /> Export filtered CSV
-            </button>
-          </div>
-
-          <div className="collection-tabs" aria-label="Collection status">
-            {(
-              [
-                ["Owned", `Owned ${ownedLocks.length}`],
-                ["Wishlist", `Wishlist ${wishlistLocks.length}`],
-                ["All", `All ${locks.length}`],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                className={status === value ? "active" : ""}
-                aria-pressed={status === value}
-                onClick={() => {
-                  setStatus(value);
-                  setVisible(24);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="belt-filters" aria-label="Filter by LPU belt rank">
-            <button
-              className={belt === "All" ? "active all-belts" : "all-belts"}
-              aria-pressed={belt === "All"}
-              onClick={() => {
-                setBelt("All");
-                setVisible(24);
-              }}
-            >
-              {status === "All" ? "All locks" : `All ${status.toLowerCase()}`}
-            </button>
-            {displayBelts.map((item) => (
-              <button
-                key={item}
-                className={`belt-filter-button ${belt === item ? "active" : ""}`}
-                style={{ "--belt": beltColors[item] } as React.CSSProperties}
-                aria-pressed={belt === item}
-                onClick={() => {
-                  setBelt(item);
-                  setVisible(24);
-                }}
-              >
-                <i />
-                {item === "Unranked" ? item : `${item} Belt`}
-              </button>
-            ))}
-          </div>
-
-          <div className="filter-bar">
-            <label className="search-field">
-              <Icon name="search" />
-              <input
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setVisible(24);
-                }}
-                placeholder="Search model, version, or mechanism…"
-              />
-              <span>{filteredLocks.length} results</span>
-            </label>
-            <label>
-              <span>Belt</span>
-              <select
-                value={belt}
-                onChange={(event) => {
-                  setBelt(event.target.value as "All" | Belt);
-                  setVisible(24);
-                }}
-              >
-                <option>All</option>
-                {displayBelts.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Mechanism</span>
-              <select
-                value={mechanism}
-                onChange={(event) => {
-                  setMechanism(event.target.value);
-                  setVisible(24);
-                }}
-              >
-                <option>All</option>
-                <option value={MULTI_MECHANISM_FILTER}>{MULTI_MECHANISM_FILTER}</option>
-                {mechanisms.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Sort</span>
-              <select value={sort} onChange={(event) => setSort(event.target.value)}>
-                <option value="belt-desc">Belt: high to low</option>
-                <option value="belt-asc">Belt: low to high</option>
-                <option value="name">Name: A–Z</option>
-                <option value="name-desc">Name: Z–A</option>
-              </select>
-            </label>
-          </div>
-
-          <div className="collection-shell">
-            <div className="collection-summary">
-              <div>
-                <span>{status === "All" ? "Current view" : `${status} collection`}</span>
-                <strong>{filteredLocks.length} matching locks</strong>
-              </div>
-              <p>
-                Cards are ordered by{" "}
-                {sort === "name" || sort === "name-desc"
-                  ? `name, ${sort === "name-desc" ? "Z–A" : "A–Z"}`
-                  : `belt, ${sort === "belt-desc" ? "highest first" : "lowest first"}`}
-                .
-              </p>
-            </div>
-            <div className="lock-grid">
-              {filteredLocks.slice(0, visible).map((lock, index) => (
-                <article
-                  className="lock-card"
-                  key={`${lock.name}-${lock.version}-${index}`}
-                  style={{ "--belt": beltColors[lock.belt] } as React.CSSProperties}
+              <p role="status">{comparisonSelections.length} of 2 profiles selected.</p>
+              {savedProfiles.length < 2 && (
+                <button className="secondary-button" onClick={() => openProfileEditor(null)}>
+                  Add another profile
+                </button>
+              )}
+              {comparisonSelections.length === 2 && (
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    window.localStorage.setItem(
+                      COMPARISON_PROFILE_IDS_KEY,
+                      JSON.stringify(comparisonSelections),
+                    );
+                    window.location.reload();
+                  }}
                 >
-                  <span
-                    className={`belt-rail ${lock.belt === "Black" ? "black-level" : ""}`}
-                    aria-hidden="true"
-                  >
-                    {lock.belt === "Black" &&
-                      Array.from({ length: beltLevelScore(lock.beltLevel) }, (_, stripe) => (
-                        <i className="black-level-stripe" key={stripe} />
-                      ))}
-                  </span>
-                  <div className="lock-card-topline">
-                    <span className="lock-index">{String(index + 1).padStart(3, "0")}</span>
-                    <div className="lock-classification">
-                      <span className={`collection-badge ${lock.status.toLowerCase()}`}>
-                        {lock.status}
-                      </span>
-                      {lock.picked && <span className="picked-badge">Picked</span>}
+                  Compare selected profiles
+                </button>
+              )}
+            </section>
+          )}
+
+          {screen === "overview" && (
+            <>
+              <header className="hero" id="top">
+                <div className="hero-copy">
+                  <div className="status-chip">
+                    <i /> Profile data fetched · <DataTimestamp value={displayedSnapshotDate} />
+                  </div>
+                  <p className="eyebrow">Lock Pickers United collection profile</p>
+                  <h1 id="screen-title" tabIndex={-1}>
+                    {profile.name}’s collection overview
+                  </h1>
+                  <p className="hero-lede">
+                    A summary of {profile.name}’s LPU profile: {ownedLocks.length} owned locks
+                    analyzed, with {wishlistLocks.length} wishlist locks tracked separately.
+                  </p>
+                  <div className="hero-actions">
+                    <button className="primary-button" onClick={jumpToExplorer}>
+                      Explore owned locks <Icon name="arrow" />
+                    </button>
+                    <button
+                      className="secondary-button"
+                      onClick={chooseSurprise}
+                      aria-controls="challenge-result"
+                    >
+                      <Icon name="shuffle" /> Find a challenge
+                    </button>
+                  </div>
+                  <div className="hero-meta">
+                    <div>
+                      <span>Owned median</span>
+                      <BeltPill belt={ownedMedian} />
+                    </div>
+                    <div>
+                      <span>Wishlist</span>
+                      <strong>
+                        {wishlistLocks.length} <small>tracked separately</small>
+                      </strong>
                     </div>
                   </div>
-                  <div className="lock-name">
-                    <h3>{lock.name}</h3>
-                    {lock.version && <p>{lock.version}</p>}
+                </div>
+                <CollectionSnapshot />
+              </header>
+
+              {surprise && (
+                <aside
+                  className="surprise-card"
+                  id="challenge-result"
+                  ref={challengeRef}
+                  tabIndex={-1}
+                  aria-live="polite"
+                >
+                  <div className="surprise-icon">
+                    <Icon name="spark" />
                   </div>
-                  <div className="mechanism-tags">
-                    {lock.mechanisms.map((item) => (
-                      <button key={item} onClick={() => selectMechanism(item)}>
-                        {item}
-                      </button>
-                    ))}
+                  <div>
+                    <p className="eyebrow">Owned challenge draw</p>
+                    <h3>{surprise.name}</h3>
+                    <p>{surprise.version || surprise.mechanisms.join(" + ")}</p>
                   </div>
-                  <div
-                    className="lock-resource-links"
-                    aria-label={`LPU reference for ${lock.name}`}
-                  >
-                    <a
-                      href={lock.resourceLinks?.lpu || `https://lpubelts.com/locks/${lock.id}.html`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      LPU Belts <Icon name="external" size={12} />
-                    </a>
-                  </div>
-                  <div className="lock-card-footer">
-                    <span>Belt rank</span>
-                    <BeltPill belt={lock.belt} label={lock.beltLevel} compact />
-                  </div>
-                </article>
-              ))}
-              {filteredLocks.length === 0 && (
-                <div className="empty-state">
-                  <Icon name="search" size={28} />
-                  <h3>No locks match those filters</h3>
-                  <p>Try a broader keyword or reset one of the collection views.</p>
+                  <BeltPill belt={surprise.belt} label={surprise.beltLevel} />
+                  <button onClick={chooseSurprise}>
+                    <Icon name="shuffle" /> Draw again
+                  </button>
                   <button
-                    onClick={() => {
-                      setQuery("");
-                      setStatus("Owned");
-                      setBelt("All");
-                      setMechanism("All");
-                    }}
+                    className="surprise-close"
+                    onClick={() => setSurprise(null)}
+                    aria-label="Close challenge"
                   >
-                    Reset filters
+                    ×
+                  </button>
+                </aside>
+              )}
+
+              <section className="section overview-section" id="overview">
+                <SectionHeading
+                  eyebrow="At a glance"
+                  title="The owned collection, quantified"
+                  copy={`Core belt-rank and locking-mechanism counts use the ${ownedLocks.length} locks ${profile.name} owns. Wishlist locks remain visible as a separate planning list.`}
+                />
+                <div className="metric-grid">
+                  <MetricCard
+                    label="Owned locks"
+                    value={String(ownedLocks.length)}
+                    detail={`${wishlistLocks.length} more on wishlist`}
+                    tone="#6ee7f2"
+                    icon="lock"
+                  />
+                  <MetricCard
+                    label="Blue or higher"
+                    value={String(ownedBluePlus)}
+                    detail={`${percentOfOwned(ownedBluePlus)}% of owned locks`}
+                    tone="#6482ff"
+                    icon="chart"
+                  />
+                  <MetricCard
+                    label="Red & Black Belts"
+                    value={String(ownedRedAndBlack)}
+                    detail={`${percentOfOwned(ownedRedAndBlack)}% of owned locks`}
+                    tone="#e65d72"
+                    icon="spark"
+                  />
+                  <MetricCard
+                    label="Multi-mechanism locks"
+                    value={String(ownedMultiMechanism)}
+                    detail={`${percentOfOwned(ownedMultiMechanism)}% of owned locks`}
+                    tone="#a875f2"
+                    icon="shuffle"
+                  />
+                </div>
+                <div className="insight-strip">
+                  <div>
+                    <span className="insight-number">01</span>
+                    <p>
+                      <strong>Blue Belt median.</strong> {ownedBluePlus} owned locks are ranked Blue
+                      Belt or above, and the median owned rank is {ownedMedian} Belt.
+                    </p>
+                  </div>
+                  <div>
+                    <span className="insight-number">02</span>
+                    <p>
+                      <strong>Broad range of locking mechanisms.</strong> {mechanismCounts.length}{" "}
+                      labels cover Pin-tumbler, Disc detainer, Dimple, Slider, Sidepins, Lever, and
+                      more.
+                    </p>
+                  </div>
+                  <button onClick={copySummary}>
+                    <Icon name="copy" /> {copied ? "Copied" : "Copy summary"}
                   </button>
                 </div>
-              )}
-            </div>
-            {visible < filteredLocks.length && (
-              <button className="load-more" onClick={() => setVisible((count) => count + 24)}>
-                Show 24 more <span>{filteredLocks.length - visible} remaining</span>
-              </button>
-            )}
-          </div>
-        </section>
+              </section>
+            </>
+          )}
 
-        <WishlistOwnerTable activeProfile={profile} loading={profileLoading} paused={addProfileOpen || profileMenuOpen || refreshInProgress} />
+          {screen === "analysis" && (
+            <>
+              <section className="section" id="analysis">
+                <SectionHeading
+                  eyebrow="Owned-only analysis"
+                  title="Owned locks by belt rank and locking mechanism"
+                  copy="Belt, locking-mechanism, manufacturer, and matrix charts exclude wishlist locks. The collection-status chart remains a profile-level comparison."
+                />
+                <div className="dashboard-grid">
+                  <BeltChart onSelect={selectBelt} />
+                  <BenchmarkChart />
+                  <RankedBars
+                    eyebrow="Lock designs"
+                    title="Locking mechanisms"
+                    data={mechanismCounts.slice(0, 8)}
+                    onSelect={selectMechanism}
+                  />
+                  <RankedBars
+                    eyebrow="Manufacturers"
+                    title="Most common manufacturers"
+                    data={brandCounts.slice(0, 8)}
+                  />
+                  <Heatmap />
+                  {profile.id === DEFAULT_PROFILE_ID ? (
+                    <Timeline />
+                  ) : (
+                    <article className="panel timeline-panel">
+                      <div className="panel-heading">
+                        <div>
+                          <p className="eyebrow">Picker progression</p>
+                          <h3>Belt-award timeline</h3>
+                        </div>
+                      </div>
+                      <p className="profile-data-note">
+                        The public LPU profile feed does not expose belt-award dates for this
+                        profile.
+                      </p>
+                    </article>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+
+          {screen === "community" && (
+            <>
+              <section className="section community-section" id="community">
+                <SectionHeading
+                  eyebrow="LPU community context"
+                  title="Collection depth and picking progress in context"
+                  copy={`${profile.name}’s owned and picked counts are compared with the public LPU Stats dashboard. Member belt distributions are shown separately because a picker’s belt and a lock’s rank measure different things.`}
+                />
+                <div className="community-metrics">
+                  <article className="community-metric">
+                    <span>Ranked catalog coverage</span>
+                    <strong>{((ownedRanked / lpuCatalog.ranked) * 100).toFixed(1)}%</strong>
+                    <p>
+                      {ownedRanked} owned ranked entries out of {lpuCatalog.ranked} ranked LPU locks
+                    </p>
+                  </article>
+                  <article className="community-metric">
+                    <span>Owned versus average</span>
+                    <strong>
+                      {(
+                        ownedLocks.length / Math.max(1, communityData.cohorts.all.own.average)
+                      ).toFixed(1)}
+                      ×
+                    </strong>
+                    <p>
+                      {ownedLocks.length} owned compared with{" "}
+                      {communityData.cohorts.all.own.average.toFixed(1)} among profiles with a
+                      nonempty owned list
+                    </p>
+                  </article>
+                  <article className="community-metric">
+                    <span>Picked versus average</span>
+                    <strong>
+                      {(
+                        (profileMetric(profile, "picked") ?? 0) /
+                        Math.max(1, communityData.cohorts.all.picked.average)
+                      ).toFixed(1)}
+                      ×
+                    </strong>
+                    <p>
+                      {profileMetric(profile, "picked") ?? 0} picked compared with{" "}
+                      {communityData.cohorts.all.picked.average.toFixed(1)} among profiles with a
+                      nonempty picked list
+                    </p>
+                  </article>
+                  <article className="community-metric">
+                    <span>Wishlist versus average</span>
+                    <strong>
+                      {(
+                        wishlistLocks.length /
+                        Math.max(1, communityData.cohorts.all.wishlist.average)
+                      ).toFixed(1)}
+                      ×
+                    </strong>
+                    <p>
+                      {wishlistLocks.length} wishlist entries compared with{" "}
+                      {communityData.cohorts.all.wishlist.average.toFixed(1)} among profiles with a
+                      nonempty wishlist
+                    </p>
+                  </article>
+                </div>
+                <div className="community-grid">
+                  <PickingProgressChart />
+                  <MemberBeltContext />
+                </div>
+                <div className="community-source-note">
+                  <p>
+                    LPU catalog snapshot: {lpuCatalog.all} total locks, including{" "}
+                    {lpuCatalog.ranked} ranked and {lpuCatalog.unranked} unranked. Community figures
+                    viewed {LPU_STATS_SNAPSHOT}.
+                  </p>
+                  <a href={LPU_STATS_URL} target="_blank" rel="noreferrer">
+                    Open LPU Stats <Icon name="external" size={15} />
+                  </a>
+                </div>
+              </section>
+            </>
+          )}
+
+          {screen === "findings" && (
+            <>
+              <section className="section findings-section" id="findings">
+                <SectionHeading
+                  eyebrow="Interpretation"
+                  title="What the owned data says"
+                  copy="The owned collection is concentrated at Blue Belt and above, while the separate wishlist includes even more higher-ranked locks."
+                />
+                <div className="findings-grid">
+                  <InsightCard
+                    index="01"
+                    title="Higher-ranked owned locks"
+                    copy={`${ownedBluePlus} owned locks are ranked Blue Belt or above, including ${beltCounts.Black} Black Belt locks.`}
+                    stat={`${ownedBluePlus} locks`}
+                  />
+                  <InsightCard
+                    index="02"
+                    title="Pin-tumbler foundation"
+                    copy={`${mechanismCounts[0]?.label ?? "No locking mechanism"} is the most common locking-mechanism label in the owned collection.`}
+                    stat={`${mechanismCounts[0]?.value ?? 0} locks`}
+                  />
+                  <InsightCard
+                    index="03"
+                    title="Higher-ranked wishlist locks"
+                    copy={`${wishlistBluePlus} of ${wishlistLocks.length} wishlist locks are ranked Blue Belt or above.`}
+                    stat={`${wishlistBluePlus} locks`}
+                  />
+                </div>
+              </section>
+            </>
+          )}
+
+          {screen === "explorer" && (
+            <>
+              <section className="section explorer-section" id="explorer">
+                <div className="explorer-heading">
+                  <SectionHeading
+                    eyebrow="Interactive explorer"
+                    title="Browse owned and wishlist locks"
+                    copy="Choose owned, wishlist, or all locks, then filter by belt rank, locking mechanism, or keyword."
+                  />
+                  <button className="export-button" onClick={exportCsv}>
+                    <Icon name="download" /> Export filtered CSV
+                  </button>
+                </div>
+
+                <div className="collection-tabs" aria-label="Collection status">
+                  {(
+                    [
+                      ["Owned", `Owned ${ownedLocks.length}`],
+                      ["Wishlist", `Wishlist ${wishlistLocks.length}`],
+                      ["All", `All ${locks.length}`],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      className={status === value ? "active" : ""}
+                      aria-pressed={status === value}
+                      onClick={() => {
+                        setStatus(value);
+                        setVisible(24);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="belt-filters" aria-label="Filter by LPU belt rank">
+                  <button
+                    className={belt === "All" ? "active all-belts" : "all-belts"}
+                    aria-pressed={belt === "All"}
+                    onClick={() => {
+                      setBelt("All");
+                      setVisible(24);
+                    }}
+                  >
+                    {status === "All" ? "All locks" : `All ${status.toLowerCase()}`}
+                  </button>
+                  {displayBelts.map((item) => (
+                    <button
+                      key={item}
+                      className={`belt-filter-button ${belt === item ? "active" : ""}`}
+                      style={{ "--belt": beltColors[item] } as React.CSSProperties}
+                      aria-pressed={belt === item}
+                      onClick={() => {
+                        setBelt(item);
+                        setVisible(24);
+                      }}
+                    >
+                      <i />
+                      {item === "Unranked" ? item : `${item} Belt`}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="filter-bar">
+                  <label className="search-field">
+                    <Icon name="search" />
+                    <input
+                      value={query}
+                      onChange={(event) => {
+                        setQuery(event.target.value);
+                        setVisible(24);
+                      }}
+                      placeholder="Search model, version, or mechanism…"
+                    />
+                    <span>{filteredLocks.length} results</span>
+                  </label>
+                  <label>
+                    <span>Belt</span>
+                    <select
+                      value={belt}
+                      onChange={(event) => {
+                        setBelt(event.target.value as "All" | Belt);
+                        setVisible(24);
+                      }}
+                    >
+                      <option>All</option>
+                      {displayBelts.map((item) => (
+                        <option key={item}>{item}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Mechanism</span>
+                    <select
+                      value={mechanism}
+                      onChange={(event) => {
+                        setMechanism(event.target.value);
+                        setVisible(24);
+                      }}
+                    >
+                      <option>All</option>
+                      <option value={MULTI_MECHANISM_FILTER}>{MULTI_MECHANISM_FILTER}</option>
+                      {mechanisms.map((item) => (
+                        <option key={item}>{item}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Sort</span>
+                    <select value={sort} onChange={(event) => setSort(event.target.value)}>
+                      <option value="belt-desc">Belt: high to low</option>
+                      <option value="belt-asc">Belt: low to high</option>
+                      <option value="name">Name: A–Z</option>
+                      <option value="name-desc">Name: Z–A</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="collection-shell">
+                  <div className="collection-summary">
+                    <div>
+                      <span>{status === "All" ? "Current view" : `${status} collection`}</span>
+                      <strong>{filteredLocks.length} matching locks</strong>
+                    </div>
+                    <p>
+                      Cards are ordered by{" "}
+                      {sort === "name" || sort === "name-desc"
+                        ? `name, ${sort === "name-desc" ? "Z–A" : "A–Z"}`
+                        : `belt, ${sort === "belt-desc" ? "highest first" : "lowest first"}`}
+                      .
+                    </p>
+                  </div>
+                  <div className="lock-grid">
+                    {filteredLocks.slice(0, visible).map((lock, index) => (
+                      <article
+                        className="lock-card"
+                        key={`${lock.name}-${lock.version}-${index}`}
+                        style={{ "--belt": beltColors[lock.belt] } as React.CSSProperties}
+                      >
+                        <span
+                          className={`belt-rail ${lock.belt === "Black" ? "black-level" : ""}`}
+                          aria-hidden="true"
+                        >
+                          {lock.belt === "Black" &&
+                            Array.from({ length: beltLevelScore(lock.beltLevel) }, (_, stripe) => (
+                              <i className="black-level-stripe" key={stripe} />
+                            ))}
+                        </span>
+                        <div className="lock-card-topline">
+                          <span className="lock-index">{String(index + 1).padStart(3, "0")}</span>
+                          <div className="lock-classification">
+                            <span className={`collection-badge ${lock.status.toLowerCase()}`}>
+                              {lock.status}
+                            </span>
+                            {lock.picked && <span className="picked-badge">Picked</span>}
+                          </div>
+                        </div>
+                        <div className="lock-name">
+                          <h3>{lock.name}</h3>
+                          {lock.version && <p>{lock.version}</p>}
+                        </div>
+                        <div className="mechanism-tags">
+                          {lock.mechanisms.map((item) => (
+                            <button key={item} onClick={() => selectMechanism(item)}>
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                        <div
+                          className="lock-resource-links"
+                          aria-label={`LPU reference for ${lock.name}`}
+                        >
+                          <a
+                            href={
+                              lock.resourceLinks?.lpu ||
+                              `https://lpubelts.com/locks/${lock.id}.html`
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            LPU Belts <Icon name="external" size={12} />
+                          </a>
+                        </div>
+                        <div className="lock-card-footer">
+                          <span>Belt rank</span>
+                          <BeltPill belt={lock.belt} label={lock.beltLevel} compact />
+                        </div>
+                      </article>
+                    ))}
+                    {filteredLocks.length === 0 && (
+                      <div className="empty-state">
+                        <Icon name="search" size={28} />
+                        <h3>No locks match those filters</h3>
+                        <p>Try a broader keyword or reset one of the collection views.</p>
+                        <button
+                          onClick={() => {
+                            setQuery("");
+                            setStatus("Owned");
+                            setBelt("All");
+                            setMechanism("All");
+                          }}
+                        >
+                          Reset filters
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {visible < filteredLocks.length && (
+                    <button className="load-more" onClick={() => setVisible((count) => count + 24)}>
+                      Show 24 more <span>{filteredLocks.length - visible} remaining</span>
+                    </button>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+
+          {screen === "lpu-insights" && (
+            <ExpandedInsights profile={profile} onRefreshProfile={() => void refreshProfile()} />
+          )}
+
+          {screen === "wishlist-owners" && (
+            <WishlistOwnerTable
+              activeProfile={profile}
+              loading={profileLoading}
+              paused={addProfileOpen || profileMenuOpen || refreshInProgress}
+            />
+          )}
+        </div>
 
         <footer>
           <div className="footer-brand">

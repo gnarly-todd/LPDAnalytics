@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ActivityStatus, useActivityTimestamps } from "./activity-status";
 import {
   directoryProfileUrl,
   parseProfileDirectory,
@@ -43,12 +44,14 @@ export default function ProfileNameInput({
   const [directory, setDirectory] = useState<DirectoryProfile[] | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const activity = useActivityTimestamps();
   const [retry, setRetry] = useState(0);
   const isLink = /^https?:\/\//i.test(value.trim());
   const search = value.trim().length >= 2 && !isLink;
   useEffect(() => {
     if (!search || directory) return;
     let cancelled = false;
+    activity.start();
     setLoading(true);
     setError("");
     void getDirectory()
@@ -64,9 +67,13 @@ export default function ProfileNameInput({
           );
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          activity.finish();
+        }
       });
     return () => {
+      activity.finish();
       cancelled = true;
     };
   }, [search, directory, retry]);
@@ -96,6 +103,7 @@ export default function ProfileNameInput({
           Loading profile names…
         </p>
       )}
+      {search && <ActivityStatus label="Profile name lookup" timing={activity.timing} />}
       {search && error && (
         <div className="profile-name-status" role="alert">
           <p>{error}</p>

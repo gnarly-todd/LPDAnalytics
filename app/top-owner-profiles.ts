@@ -1,12 +1,22 @@
 import { parseProfileDirectory, PROFILE_DIRECTORY_URL } from "./profile-name-search";
 import type { WishlistProfile } from "./wishlist-owner-utils";
-import { fetchLpuUser } from "./lpu-request";
+import { fetchLpuUser, LpuRateLimitError } from "./lpu-request";
 
 export const TOP_OWNER_LIMIT = 30;
 export const OWNER_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 export type TopOwner = { id: string; name: string; url: string; ownedCount: number };
-export type TopOwnerDirectory = { profiles: TopOwner[]; updatedAt: string };
+export type TopOwnerDirectory = { profiles: TopOwner[]; updatedAt: string; fetchedAt?: number };
 export type OwnerSnapshot = { id: string; name: string; own: string[]; fetchedAt: number };
+export const OWNER_SCAN_CONCURRENCY = 3;
+export type OwnerScanProgress = {
+  snapshots: OwnerSnapshot[];
+  processed: number;
+  total: number;
+  cached: number;
+  fresh: number;
+  errors: Record<string, string>;
+  rateLimit?: LpuRateLimitError;
+};
 
 export function selectTopOwners(value: unknown): TopOwnerDirectory {
   const named = parseProfileDirectory(value);
@@ -33,7 +43,13 @@ export function selectTopOwners(value: unknown): TopOwnerDirectory {
   return { profiles, updatedAt: data.metadata?.updatedDateTime ?? "Not supplied" };
 }
 
-export async function fetchTopOwners(signal?: AbortSignal): Promise<TopOwnerDirectory> {
+export async function fetchTopOwners(
+  signal?: AbortSignal,
+  force = false,
+): Promise<TopOwnerDirectory> {
+  const cached = readOwnerDirectory();
+  const age = Date.now() - (cached?.fetchedAt ?? 0);
+  if (!force && cached && cached.fetchedAt && age >= 0 && age < OWNER_CACHE_TTL) return cached;
   const response = await fetch(PROFILE_DIRECTORY_URL, {
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -43,22 +59,49 @@ export async function fetchTopOwners(signal?: AbortSignal): Promise<TopOwnerDire
   });
   if (!response.ok)
     throw new Error(`The public leaderboard could not be loaded (${response.status}).`);
-  const directory = selectTopOwners(await response.json());
-  try { window.localStorage.setItem("lpu-owner-directory-v1", JSON.stringify(directory)); }
-  catch { /* The manual scan still works without persistent storage. */ }
+  const directory = { ...selectTopOwners(await response.json()), fetchedAt: Date.now() };
+  for (const storage of ["localStorage", "sessionStorage"] as const) {
+    try {
+      window[storage].setItem("lpu-owner-directory-v1", JSON.stringify(directory));
+    } catch {
+      /* The manual scan still works without persistent storage. */
+    }
+  }
   return directory;
 }
 
 export function readOwnerDirectory(): TopOwnerDirectory | null {
-  try {
-    const value = JSON.parse(window.localStorage.getItem("lpu-owner-directory-v1") || "null");
-    if (!value || !Array.isArray(value.profiles) || !value.profiles.length || typeof value.updatedAt !== "string") return null;
-    if (!value.profiles.every((profile: TopOwner) =>
-      typeof profile.id === "string" && /^[A-Za-z0-9_-]{20,128}$/.test(profile.id) &&
-      typeof profile.name === "string" && typeof profile.url === "string" &&
-      Number.isFinite(profile.ownedCount))) return null;
-    return { profiles: value.profiles.slice(0, TOP_OWNER_LIMIT), updatedAt: value.updatedAt };
-  } catch { return null; }
+  for (const storage of ["localStorage", "sessionStorage"] as const) {
+    try {
+      const value = JSON.parse(window[storage].getItem("lpu-owner-directory-v1") || "null");
+      if (
+        !value ||
+        !Array.isArray(value.profiles) ||
+        !value.profiles.length ||
+        typeof value.updatedAt !== "string"
+      )
+        continue;
+      if (
+        !value.profiles.every(
+          (profile: TopOwner) =>
+            typeof profile.id === "string" &&
+            /^[A-Za-z0-9_-]{20,128}$/.test(profile.id) &&
+            typeof profile.name === "string" &&
+            typeof profile.url === "string" &&
+            Number.isFinite(profile.ownedCount),
+        )
+      )
+        continue;
+      return {
+        profiles: value.profiles.slice(0, TOP_OWNER_LIMIT),
+        updatedAt: value.updatedAt,
+        ...(Number.isFinite(value.fetchedAt) ? { fetchedAt: value.fetchedAt } : {}),
+      };
+    } catch {
+      /* Try the other browser cache. */
+    }
+  }
+  return null;
 }
 
 export function parseOwnerSnapshot(value: unknown, id: string, now = Date.now()): OwnerSnapshot {
@@ -96,25 +139,40 @@ export function snapshotProfile(snapshot: OwnerSnapshot): WishlistProfile {
 }
 
 export function readOwnerCache(id: string): OwnerSnapshot | null {
-  try {
-    const data = JSON.parse(
-      window.localStorage.getItem(`lpu-top-owner-v1-${id}`) ||
-      window.sessionStorage.getItem(`lpu-top-owner-v1-${id}`) || "null",
-    ) as OwnerSnapshot | null;
-    const age = Date.now() - (data?.fetchedAt ?? 0);
-    if (
-      data?.id !== id ||
-      !Number.isFinite(data.fetchedAt) ||
-      age < 0 ||
-      age >= OWNER_CACHE_TTL ||
-      !Array.isArray(data.own) ||
-      !data.own.every((item) => typeof item === "string") ||
-      typeof data.name !== "string"
-    )
-      return null;
-    return data;
-  } catch {
-    return null;
+  let newest: OwnerSnapshot | null = null;
+  for (const storage of ["localStorage", "sessionStorage"] as const) {
+    try {
+      const data = JSON.parse(
+        window[storage].getItem(`lpu-top-owner-v1-${id}`) || "null",
+      ) as OwnerSnapshot | null;
+      const age = Date.now() - (data?.fetchedAt ?? 0);
+      if (
+        data?.id === id &&
+        Number.isFinite(data.fetchedAt) &&
+        age >= 0 &&
+        age < OWNER_CACHE_TTL &&
+        Array.isArray(data.own) &&
+        data.own.every((item) => typeof item === "string") &&
+        typeof data.name === "string" &&
+        data.name.trim() &&
+        !/^(no display name|anonymous|unnamed|undefined|null)$/i.test(data.name.trim()) &&
+        (!newest || data.fetchedAt > newest.fetchedAt)
+      )
+        newest = data;
+    } catch {
+      /* Try the other cache if one is unavailable. */
+    }
+  }
+  return newest;
+}
+
+export function writeOwnerCache(snapshot: OwnerSnapshot) {
+  for (const storage of ["localStorage", "sessionStorage"] as const) {
+    try {
+      window[storage].setItem(`lpu-top-owner-v1-${snapshot.id}`, JSON.stringify(snapshot));
+    } catch {
+      /* A failed cache write must not discard loaded results. */
+    }
   }
 }
 
@@ -124,4 +182,79 @@ export async function fetchOwnerSnapshot(id: string, signal?: AbortSignal): Prom
   const response = await fetchLpuUser(id, signal, true);
   if (!response.ok) throw new Error(`LPU profile could not be loaded (${response.status}).`);
   return parseOwnerSnapshot(await response.json(), id);
+}
+
+export async function loadOwnerSnapshots(
+  profiles: TopOwner[],
+  {
+    signal,
+    force = false,
+    onProgress,
+  }: {
+    signal?: AbortSignal;
+    force?: boolean;
+    onProgress?: (progress: OwnerScanProgress) => void;
+  } = {},
+): Promise<OwnerScanProgress> {
+  const candidates = [...new Map(profiles.map((profile) => [profile.id, profile])).values()].slice(
+    0,
+    TOP_OWNER_LIMIT,
+  );
+  const snapshots = new Map<string, OwnerSnapshot>();
+  for (const profile of candidates) {
+    const cached = readOwnerCache(profile.id);
+    if (cached) snapshots.set(profile.id, cached);
+  }
+  const pending = candidates.filter((profile) => force || !snapshots.has(profile.id));
+  const checked = new Set<string>();
+  const errors: Record<string, string> = {};
+  let processed = force ? 0 : snapshots.size;
+  let cursor = 0;
+  let rateLimit: LpuRateLimitError | undefined;
+  const progress = (): OwnerScanProgress => ({
+    snapshots: candidates.flatMap((profile) =>
+      snapshots.has(profile.id) ? [snapshots.get(profile.id)!] : [],
+    ),
+    processed,
+    total: candidates.length,
+    cached: [...snapshots.keys()].filter((id) => !checked.has(id)).length,
+    fresh: checked.size,
+    errors: { ...errors },
+    ...(rateLimit ? { rateLimit } : {}),
+  });
+  const publish = () => {
+    if (!signal?.aborted) onProgress?.(progress());
+  };
+  signal?.throwIfAborted();
+  publish();
+  async function worker() {
+    while (!signal?.aborted && !rateLimit && cursor < pending.length) {
+      const profile = pending[cursor++];
+      try {
+        const snapshot = await fetchOwnerSnapshot(profile.id, signal);
+        if (signal?.aborted) return;
+        snapshots.set(profile.id, snapshot);
+        checked.add(profile.id);
+        writeOwnerCache(snapshot);
+      } catch (error) {
+        if (signal?.aborted) return;
+        if (error instanceof LpuRateLimitError) {
+          rateLimit = error;
+          publish();
+          return;
+        }
+        errors[profile.id] =
+          error instanceof Error ? error.message : "Profile could not be loaded.";
+      }
+      processed++;
+      publish();
+    }
+  }
+  // The existing shared request budget and Retry-After cooldown still apply to
+  // every attempt. Bounded concurrency removes serial network wait, not limits.
+  await Promise.all(
+    Array.from({ length: Math.min(OWNER_SCAN_CONCURRENCY, pending.length) }, worker),
+  );
+  signal?.throwIfAborted();
+  return progress();
 }

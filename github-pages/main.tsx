@@ -2,6 +2,8 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import Home from "../app/page";
 import "../app/globals.css";
+import "../app/mobile-usability.css";
+import "../app/screen-navigation.css";
 
 const root = document.getElementById("root");
 

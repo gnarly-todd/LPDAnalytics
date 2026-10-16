@@ -121,6 +121,33 @@ source = source.replace(
   /export const profileSnapshotDate = "[^"]+";/,
   `export const profileSnapshotDate = "${refreshedOn}";`,
 );
+const extraCollections = Object.fromEntries(
+  [
+    "own",
+    "picked",
+    "wishlist",
+    "recorded",
+    "recordedLocks",
+    "scorecard",
+    "safelocksOwn",
+    "safelocksCracked",
+    "safelocksWishlist",
+  ]
+    .filter((key) => Array.isArray(collections[key]))
+    .map((key) => [key, [...new Set(collectionStrings(collections[key]))]]),
+);
+const extraSnapshot = `export const profileCollectionsSnapshot: Record<string, string[]> = ${JSON.stringify(extraCollections)};`;
+if (/export const profileCollectionsSnapshot: Record<string, string\[\]> = [^;]*;/.test(source)) {
+  source = source.replace(
+    /export const profileCollectionsSnapshot: Record<string, string\[\]> = [^;]*;/,
+    extraSnapshot,
+  );
+} else {
+  source = source.replace(
+    /(export const profileSnapshotDate = "[^"]+";)/,
+    `$1\n\n${extraSnapshot}`,
+  );
+}
 await writeFile(DATA_FILE, source);
 
 console.log(

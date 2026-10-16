@@ -45,22 +45,35 @@ export function ownerCsvCell(value: string | number) {
 }
 
 export type WishlistSort = {
-  key: "lock" | "rank" | "owners";
+  key: "lock" | "rank" | "owners" | "demand";
   direction: "asc" | "desc";
 };
 
 export function sortWishlistRows(
   rows: ReturnType<typeof matchWishlistOwners>,
   sort: WishlistSort,
+  demand: Record<string, number> = {},
 ) {
-  const compareText = (a: string, b: string) => a.localeCompare(b, "en", { numeric: true, sensitivity: "base" });
+  const compareText = (a: string, b: string) =>
+    a.localeCompare(b, "en", { numeric: true, sensitivity: "base" });
   const compareLocks = (a: LockRecord, b: LockRecord) =>
-    compareText(a.name, b.name) || compareText(a.version ?? "", b.version ?? "") || a.id.localeCompare(b.id);
-  const rank = (lock: LockRecord) => lock.belt === "Unranked" ? -1 :
-    beltOrder.indexOf(lock.belt) + (lock.belt === "Black" ? Number(lock.beltLevel?.match(/[1-5]$/)?.[0] ?? 0) / 10 : 0);
+    compareText(a.name, b.name) ||
+    compareText(a.version ?? "", b.version ?? "") ||
+    a.id.localeCompare(b.id);
+  const rank = (lock: LockRecord) =>
+    lock.belt === "Unranked"
+      ? -1
+      : beltOrder.indexOf(lock.belt) +
+        (lock.belt === "Black" ? Number(lock.beltLevel?.match(/[1-5]$/)?.[0] ?? 0) / 10 : 0);
   return [...rows].sort((a, b) => {
-    const primary = sort.key === "lock" ? compareLocks(a.lock, b.lock) :
-      sort.key === "rank" ? rank(a.lock) - rank(b.lock) : a.owners.length - b.owners.length;
+    const primary =
+      sort.key === "lock"
+        ? compareLocks(a.lock, b.lock)
+        : sort.key === "rank"
+          ? rank(a.lock) - rank(b.lock)
+          : sort.key === "demand"
+            ? (demand[a.lock.id] ?? 0) - (demand[b.lock.id] ?? 0)
+            : a.owners.length - b.owners.length;
     return (sort.direction === "asc" ? primary : -primary) || compareLocks(a.lock, b.lock);
   });
 }
@@ -73,6 +86,7 @@ export function wishlistOwnersCsv(
   searchScope = "Added profiles",
   leaderboardUpdatedAt = "",
   sort: WishlistSort = { key: "lock", direction: "asc" },
+  demand?: { counts: Record<string, number>; updatedAt: string },
 ) {
   const rows: (string | number)[][] = [
     [
@@ -83,6 +97,7 @@ export function wishlistOwnersCsv(
       "Lock ID",
       "Belt",
       "Owner count",
+      "Published wishlist count",
       "Owner name",
       "Owner profile ID",
       "Owner profile URL",
@@ -93,10 +108,15 @@ export function wishlistOwnersCsv(
       "Failed profiles",
       "Search scope",
       "Leaderboard updated at (source time)",
+      "Wishlist demand source updated at",
     ],
   ];
   const loadedCount = new Set(loaded.filter((p) => p.id !== active.id).map((p) => p.id)).size;
-  for (const { lock, owners } of sortWishlistRows(matchWishlistOwners(active, loaded), sort)) {
+  for (const { lock, owners } of sortWishlistRows(
+    matchWishlistOwners(active, loaded),
+    sort,
+    demand?.counts,
+  )) {
     const common = [
       active.name,
       active.id,
@@ -105,6 +125,7 @@ export function wishlistOwnersCsv(
       lock.id,
       lock.beltLevel ?? lock.belt,
       owners.length,
+      demand ? (demand.counts[lock.id] ?? 0) : "Not loaded",
     ];
     const coverage = [
       active.refreshedAt,
@@ -113,6 +134,7 @@ export function wishlistOwnersCsv(
       failedNames.join("; "),
       searchScope,
       leaderboardUpdatedAt,
+      demand?.updatedAt ?? "Not loaded",
     ];
     if (!owners.length)
       rows.push([...common, "No matches among loaded profiles", "", "", "", ...coverage]);
