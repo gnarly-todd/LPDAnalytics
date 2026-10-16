@@ -31,6 +31,8 @@ function environment(hooks) {
     active: 0,
     peak: 0,
     requests: [],
+    exports: [],
+    downloads: [],
   };
   env.fetch = async (url, options) => {
     if (!url.includes("/services/api/")) {
@@ -58,6 +60,24 @@ function environment(hooks) {
     } finally {
       env.active--;
     }
+  };
+  class BrowserURL extends URL {
+    static createObjectURL(blob) {
+      env.exports.push(blob);
+      return "blob:owner-export";
+    }
+    static revokeObjectURL() {}
+  }
+  const document = {
+    body: { appendChild() {} },
+    createElement() {
+      return {
+        click() {
+          env.downloads.push({ href: this.href, name: this.download });
+        },
+        remove() {},
+      };
+    },
   };
   const cache = new Map();
   env.load = (name) => {
@@ -98,7 +118,8 @@ function environment(hooks) {
         AbortController,
         Response,
         Headers,
-        URL,
+        URL: BrowserURL,
+        document,
         Blob,
         setTimeout,
         clearTimeout,
@@ -240,7 +261,7 @@ async function componentChecks() {
   };
   const env = environment(hooks);
   const Table = env.load("app/wishlist-owner-table.tsx").default;
-  const activeProfile = {
+  let activeProfile = {
     id: "selected-profile-id-000",
     name: "A very long profile name to wrap on a phone",
     url: "https://lpubelts.com",
@@ -255,9 +276,10 @@ async function componentChecks() {
       mechanisms: [],
     })),
   };
+  let profileLoading = false;
   const render = () => {
     cursor = 0;
-    const tree = Table({ activeProfile, loading: false });
+    const tree = Table({ activeProfile, loading: profileLoading });
     const jobs = pending;
     pending = [];
     jobs.forEach((job) => job());
@@ -279,8 +301,14 @@ async function componentChecks() {
   assert(html.includes("Show 30 more locks"));
   const button = (label) =>
     nodes(tree).find((node) => node.type === "button" && text(node) === label);
+  assert(button("Export all CSV").props.disabled);
+  assert(!html.includes("wishlist-owner-warning"), "Routine instructions are not warnings");
+  assert(html.includes("Not checked yet"), "Unloaded results must not imply zero owners");
   button("Load top 30").props.onClick();
+  render();
   tree = render();
+  assert(button("Stop loading"), "Loading can be stopped from the scan toolbar");
+  assert(button("Loading profiles…").props.disabled);
   await wait(120);
   tree = render();
   assert.equal(env.calls, 30);
@@ -305,6 +333,38 @@ async function componentChecks() {
   assert.equal((html.match(/class="wishlist-mobile-card"/g) ?? []).length, 1);
   assert(html.includes("CSV exports all 230"));
   assert.equal(env.calls, calls);
+  button("Export all CSV").props.onClick();
+  const csv = await env.exports.at(-1).text();
+  assert(
+    csv.includes("Lock 229") && csv.includes("Owner 029"),
+    "Export keeps all locks and owners despite filters",
+  );
+  assert.equal(csv.split("\r\n").length, 260);
+  assert(env.downloads.at(-1).name.endsWith("-wishlist-owners.csv"));
+  search.props.onChange({ target: { value: "nothing matches this search" } });
+  tree = render();
+  html = renderToStaticMarkup(tree);
+  assert(html.includes("No locks match these filters"));
+  button("Show all wishlist locks").props.onClick();
+  tree = render();
+  assert.equal(
+    (renderToStaticMarkup(tree).match(/class="wishlist-mobile-card"/g) ?? []).length,
+    30,
+  );
+  const matchSelect = nodes(tree).find(
+    (node) => node.type === "select" && node.props.value === "all",
+  );
+  matchSelect.props.onChange({ target: { value: "matched" } });
+  tree = render();
+  assert.equal((renderToStaticMarkup(tree).match(/class="wishlist-mobile-card"/g) ?? []).length, 1);
+  button("Clear filters").props.onClick();
+  tree = render();
+  const sortSelect = nodes(tree).find(
+    (node) => node.type === "select" && node.props.value === "lock:asc",
+  );
+  sortSelect.props.onChange({ target: { value: "owners:desc" } });
+  tree = render();
+  assert.equal(env.calls, calls, "Filtering and sorting must not start scans");
   search.props.onChange({ target: { value: "" } });
   tree = render();
   button("Show 30 more locks").props.onClick();
@@ -317,8 +377,44 @@ async function componentChecks() {
   await wait(120);
   tree = render();
   assert.equal(env.calls, calls + 30);
+  env.resetBudget();
+  button("Fetch latest").props.onClick();
+  render();
+  tree = render();
+  button("Stop loading").props.onClick();
+  tree = render();
+  await wait(20);
+  tree = render();
+  assert(!button("Load top 30").props.disabled, "Stop restores the load action");
+  const originalFetch = env.fetch;
+  env.fetch = async () => new Response("", { status: 503 });
+  button("Fetch latest").props.onClick();
+  render();
+  await wait(20);
+  tree = render();
+  assert(button("Retry leaderboard"));
+  assert(
+    !button("Export all CSV").props.disabled,
+    "Previously loaded results can still be exported after a refresh error",
+  );
+  assert(renderToStaticMarkup(tree).includes("Owner 029"));
+  env.fetch = originalFetch;
+  profileLoading = true;
+  tree = render();
+  html = renderToStaticMarkup(tree);
+  assert(html.includes("Loading your wishlist…"));
+  assert(
+    !html.includes("wishlist-mobile-card"),
+    "Previous profile results are hidden while loading",
+  );
+  profileLoading = false;
+  activeProfile = { ...activeProfile, locks: [] };
+  tree = render();
+  html = renderToStaticMarkup(tree);
+  assert(html.includes("No wishlist locks yet"));
+  assert(button("Load top 30").props.disabled);
   console.log(
-    "PASS: page opening makes no requests; manual cache-first/fetch-latest actions; 30-card pagination; search keeps all-row CSV and does not scan.",
+    "PASS: page opening makes no requests; manual cache-first/fetch-latest actions; 30-card pagination; clear/search/match/sort controls; full CSV export; stop/retry; cached export after refresh failure; loading/empty states.",
   );
 }
 (async () => {

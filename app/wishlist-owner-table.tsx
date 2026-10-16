@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { beltColors, type LockRecord } from "./data";
 import { useCommunityInsights } from "./community-insights";
 import {
   ActivityStatus,
@@ -216,7 +217,7 @@ export default function WishlistOwnerTable({
     setRefresh((n) => n + 1);
   };
   const exportSpreadsheet = () => {
-    if (loading || directoryError || !directory) return;
+    if (loading || !directory) return;
     const csv = wishlistOwnersCsv(
       activeProfile,
       owners,
@@ -237,383 +238,553 @@ export default function WishlistOwnerTable({
     window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
   };
 
+  const blocked = busy || loading || paused || resumeAt > Date.now() || !rows.length;
+  const matchedLockCount = matches.filter((row) => row.owners.length > 0).length;
+  const hasFilters = !!search || matchFilter !== "all";
+  const clearFilters = () => {
+    setQuery("");
+    setMatchFilter("all");
+    setVisibleCount(30);
+  };
+  const emptyOwnerText =
+    directoryError && !owners.length
+      ? "Ownership data unavailable. Try loading again."
+      : busy
+        ? "Checking owner profiles…"
+        : !owners.length
+          ? "Not checked yet. Load owner profiles to find matches."
+          : `No matches in ${owners.length} loaded profiles.`;
+  const ownerCount = (count: number) => (owners.length ? count : busy ? "…" : "—");
+  const stateLabel = loading
+    ? "Loading your profile…"
+    : busy
+      ? directory
+        ? `Checking ${processed} of ${members.length} profiles…`
+        : "Loading the leaderboard…"
+      : pauseMessage
+        ? "Waiting for the LPU request cooldown"
+        : paused
+          ? "Owner checks paused while you use profile controls"
+          : failed.length
+            ? "Some profiles could not be loaded"
+            : owners.length
+              ? `${owners.length} owner profiles loaded`
+              : "Ready when you are — load profiles to find owners";
+
   return (
     <section
       className="section wishlist-owner-section"
       id="wishlist-owners"
       aria-labelledby="wishlist-owner-heading"
     >
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">Wishlist connections</span>
-          <h2 id="wishlist-owner-heading">Who owns {activeProfile.name}’s wishlist locks?</h2>
-          <p>
-            Checks the top {TOP_OWNER_LIMIT} named public LPU profiles by owned-lock count when you
-            load them. Saved profiles appear immediately; only missing or expired profiles need a
-            request. Your own profile is excluded from owner matches.
-          </p>
+      <header className="wishlist-owner-intro">
+        <p className="eyebrow">Wishlist connections</p>
+        <h2 id="wishlist-owner-heading">{activeProfile.name}’s wishlist</h2>
+        <p>
+          Find locks owned by the top {TOP_OWNER_LIMIT} named public LPU collections. Your own
+          profile is excluded. Select an owner’s name to visit their LPU profile.
+        </p>
+      </header>
+
+      <div className="wishlist-scan-panel">
+        <div className="wishlist-scan-heading">
+          <h3>Load owner profiles</h3>
+          <span className="wishlist-scope-badge">Manual refresh · 7-day cache</span>
         </div>
-        <div className="wishlist-owner-actions">
-          <button
-            className="secondary-button"
-            onClick={() => refreshOwners()}
-            disabled={busy || loading || paused || resumeAt > Date.now() || !rows.length}
-          >
-            Load top {TOP_OWNER_LIMIT}
-          </button>
-          <button
-            className="secondary-button"
-            onClick={() => refreshOwners(true)}
-            disabled={busy || loading || paused || resumeAt > Date.now() || !rows.length}
-            title="Request every ranked profile again, including profiles cached within seven days"
-          >
-            Fetch latest
-          </button>
-          {busy && (
+        <p className="wishlist-scan-help">
+          Load top {TOP_OWNER_LIMIT} uses saved results and fetches missing or expired profiles.
+          Fetch latest requests fresh data for every profile. Opening this screen never starts a
+          scan.
+        </p>
+        <div className="wishlist-owner-toolbar">
+          <div className="wishlist-owner-actions">
+            <button
+              className="primary-button"
+              onClick={() => refreshOwners()}
+              disabled={blocked}
+              aria-busy={busy}
+            >
+              <OwnerActionIcon kind="load" />
+              {busy ? "Loading profiles…" : `Load top ${TOP_OWNER_LIMIT}`}
+            </button>
             <button
               className="secondary-button"
-              onClick={() => {
-                scanController.current?.abort();
-                setScanBusy(false);
-              }}
+              onClick={() => refreshOwners(true)}
+              disabled={blocked}
+              title="Refresh all ranked profiles, including results saved within seven days"
             >
-              Stop loading
+              <OwnerActionIcon kind="refresh" />
+              Fetch latest
             </button>
-          )}
-          <button
-            className="secondary-button"
-            onClick={exportSpreadsheet}
-            disabled={loading || !rows.length || !directory || !!directoryError}
-          >
-            Export all CSV
-          </button>
-        </div>
-      </div>
-      <ActivityStatus label="Wishlist owner scan" timing={activity.timing} />
-      {oldestFetchedAt !== null && (
-        <p className="wishlist-owner-meta">
-          Loaded owner data fetched <DataTimestamp value={oldestFetchedAt} />
-          {newestFetchedAt !== oldestFetchedAt && (
-            <>
-              {" "}
-              through <DataTimestamp value={newestFetchedAt} />
-            </>
-          )}
-          . Cached results retain their original fetch times.
-        </p>
-      )}
-      {loading ? (
-        <p role="status">Loading the selected profile’s wishlist…</p>
-      ) : (
-        <>
-          <p className="wishlist-owner-meta" role="status">
-            {rows.length} wishlist locks · {owners.length} of {members.length} ranked profiles
-            loaded
-            {busy
-              ? directory
-                ? ` · Checking ${processed}/${members.length}…`
-                : " · Loading leaderboard…"
-              : ""}
-          </p>
-          {busy && (
-            <div className="wishlist-scan-progress">
-              <progress
-                aria-label="Ranked profiles checked"
-                value={processed}
-                max={Math.max(1, members.length)}
-              />
-              <span>
-                {cacheCount} cached · {freshCount} fetched
-              </span>
-            </div>
-          )}
-          {(!busy || paused || pauseMessage) && (
-            <p className="wishlist-owner-warning" role="status">
-              {pauseMessage ||
-                (paused
-                  ? "Owner checks pause while you use profile controls."
-                  : `Load top ${TOP_OWNER_LIMIT} reuses results saved for seven days. Fetch latest checks every profile again. Opening this page does not start a scan.`)}
-              {pauseMessage &&
-                ` Select Load top ${TOP_OWNER_LIMIT} after the cooldown to continue. Results and exports include only the profiles loaded so far.`}
-            </p>
-          )}
-          {directoryError && (
-            <div role="alert" className="wishlist-owner-warning">
-              <p>{directoryError}</p>
-              <button className="secondary-button" onClick={() => refreshOwners()}>
-                Retry leaderboard
-              </button>
-            </div>
-          )}
-          {!!failed.length && (
-            <div role="alert" className="wishlist-owner-warning">
-              <p>
-                Some profiles could not be loaded. Counts and exports include only successful
-                profiles.
-              </p>
-              <ul>
-                {failed.map((p) => (
-                  <li key={p.id}>
-                    {p.name}: {errors[p.id]}
-                  </li>
-                ))}
-              </ul>
+            {busy && (
               <button
                 className="secondary-button"
                 onClick={() => {
-                  scanRequested.current = true;
-                  setRefresh((n) => n + 1);
+                  scanController.current?.abort();
+                  setScanBusy(false);
                 }}
-                disabled={busy}
               >
-                Retry owner profiles
+                Stop loading
               </button>
-            </div>
-          )}
-          {!!rows.length && (
-            <div className="wishlist-results-controls">
-              <label className="wishlist-search">
-                Find a lock or owner
-                <input
-                  type="search"
-                  value={query}
-                  placeholder="Lock, version, belt or loaded owner"
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setVisibleCount(30);
-                  }}
-                />
-              </label>
-              <label>
-                Matches
-                <select
-                  value={matchFilter}
-                  onChange={(event) => {
-                    setMatchFilter(event.target.value);
-                    setVisibleCount(30);
-                  }}
-                >
-                  <option value="all">All wishlist locks</option>
-                  <option value="matched">With loaded matches</option>
-                  <option value="unmatched">Without loaded matches</option>
-                </select>
-              </label>
-              <label>
-                Sort by
-                <select
-                  value={`${sort.key}:${sort.direction}`}
-                  onChange={(event) => {
-                    const [key, direction] = event.target.value.split(":") as [
-                      WishlistSort["key"],
-                      WishlistSort["direction"],
-                    ];
-                    setSort({ key, direction });
-                    setVisibleCount(30);
-                  }}
-                >
-                  <option value="lock:asc">Lock: A–Z</option>
-                  <option value="lock:desc">Lock: Z–A</option>
-                  <option value="rank:desc">Rank: highest first</option>
-                  <option value="rank:asc">Rank: lowest first</option>
-                  <option value="owners:desc">Loaded owners: most first</option>
-                  <option value="owners:asc">Loaded owners: fewest first</option>
-                  <option value="demand:desc">Wishlist demand: most first</option>
-                  <option value="demand:asc">Wishlist demand: fewest first</option>
-                </select>
-              </label>
-            </div>
-          )}
-          {!!rows.length && (
-            <p className="wishlist-result-count" role="status">
-              Showing {visibleRows.length} of {filteredRows.length} matching wishlist locks
-              {query || matchFilter !== "all" ? ` (${rows.length} total)` : ""}. CSV exports all{" "}
-              {rows.length}.
+            )}
+          </div>
+          <button
+            className="secondary-button wishlist-export"
+            onClick={exportSpreadsheet}
+            disabled={loading || !rows.length || !directory}
+            title="Export every wishlist lock and all currently loaded owner matches, regardless of filters"
+          >
+            <OwnerActionIcon kind="export" />
+            Export all CSV
+          </button>
+        </div>
+        <p className="wishlist-scan-state" role="status">
+          <span className={`wishlist-state-dot ${busy ? "is-busy" : ""}`} aria-hidden="true" />
+          {stateLabel}
+        </p>
+        {busy && (
+          <div className="wishlist-scan-progress">
+            <progress
+              aria-label="Ranked profiles checked"
+              value={processed}
+              max={Math.max(1, members.length)}
+            />
+            <span>
+              {cacheCount} cached · {freshCount} fetched
+            </span>
+          </div>
+        )}
+        <div className="wishlist-data-times">
+          <ActivityStatus label="Wishlist owner scan" timing={activity.timing} />
+          {oldestFetchedAt !== null && (
+            <p className="wishlist-owner-meta">
+              Owner data fetched <DataTimestamp value={oldestFetchedAt} />
+              {newestFetchedAt !== oldestFetchedAt && (
+                <>
+                  {" "}
+                  through <DataTimestamp value={newestFetchedAt} />
+                </>
+              )}
+              . Cached results retain their original fetch times.
             </p>
           )}
+        </div>
+      </div>
+
+      {!!pauseMessage && (
+        <div className="wishlist-owner-warning" role="status">
+          <strong>Requests are temporarily limited</strong>
+          <p>{pauseMessage}</p>
+          <p>
+            Try Load top {TOP_OWNER_LIMIT} after <DataTimestamp value={resumeAt} />. Loaded matches
+            remain available.
+          </p>
+        </div>
+      )}
+      {directoryError && (
+        <div role="alert" className="wishlist-owner-warning">
+          <strong>The leaderboard could not be loaded</strong>
+          <p>{directoryError}</p>
+          <button className="secondary-button" onClick={() => refreshOwners()} disabled={blocked}>
+            Retry leaderboard
+          </button>
+        </div>
+      )}
+      {!!failed.length && (
+        <div role="alert" className="wishlist-owner-warning">
+          <strong>
+            {failed.length} {failed.length === 1 ? "profile needs" : "profiles need"} another
+            attempt
+          </strong>
+          <p>Results and exports include the profiles loaded so far.</p>
+          <details>
+            <summary>View profile errors</summary>
+            <ul>
+              {failed.map((p) => (
+                <li key={p.id}>
+                  <strong>{p.name}</strong>: {errors[p.id]}
+                </li>
+              ))}
+            </ul>
+          </details>
+          <button className="secondary-button" onClick={() => refreshOwners()} disabled={blocked}>
+            Retry owner profiles
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="wishlist-empty-state" role="status">
+          <h3>Loading your wishlist…</h3>
+          <p>Results will follow the selected profile.</p>
+        </div>
+      ) : (
+        <>
+          <dl className="wishlist-summary-metrics" aria-label="Wishlist ownership summary">
+            <div>
+              <dt>Wishlist locks</dt>
+              <dd>{rows.length}</dd>
+              <dd className="wishlist-metric-note">In the selected profile</dd>
+            </div>
+            <div>
+              <dt>With owners</dt>
+              <dd>{owners.length ? matchedLockCount : "—"}</dd>
+              <dd className="wishlist-metric-note">Wishlist locks with loaded matches</dd>
+            </div>
+            <div>
+              <dt>Profiles loaded</dt>
+              <dd>
+                {owners.length}
+                <span> / {directory ? members.length : TOP_OWNER_LIMIT}</span>
+              </dd>
+              <dd className="wishlist-metric-note">Your own profile is excluded</dd>
+            </div>
+          </dl>
           {!rows.length ? (
-            <p>This profile has no wishlist locks.</p>
+            <div className="wishlist-empty-state">
+              <h3>No wishlist locks yet</h3>
+              <p>Add locks to this profile’s wishlist on LPU, then refresh the profile here.</p>
+              <a
+                className="secondary-button"
+                href={activeProfile.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open LPU profile ↗
+              </a>
+            </div>
           ) : (
             <>
-              {!filteredRows.length && <p>No locks match these filters.</p>}
-              <ol className="wishlist-mobile-list" aria-label="Wishlist ownership results">
-                {visibleRows.map(({ lock, owners: matched }) => (
-                  <li key={lock.id}>
-                    <article className="wishlist-mobile-card">
-                      <div className="wishlist-mobile-heading">
-                        <h3>
-                          <a
-                            href={
-                              lock.resourceLinks?.lpu ||
-                              `https://lpubelts.com/locks/${lock.id}.html`
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {lock.name}
-                          </a>
-                        </h3>
-                        <span className="wishlist-rank-label">{lock.beltLevel ?? lock.belt}</span>
-                      </div>
-                      {lock.version && <p className="wishlist-lock-version">{lock.version}</p>}
-                      <dl className="wishlist-mobile-stats">
-                        <div>
-                          <dt>Loaded owners</dt>
-                          <dd>
-                            {matched.length}
-                            {busy && "…"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Wishlist demand</dt>
-                          <dd>{(insightData.demand[lock.id] ?? 0).toLocaleString("en-US")}</dd>
-                        </div>
-                      </dl>
-                      <OwnerLinks
-                        matched={matched}
-                        emptyText={
-                          directoryError
-                            ? "Ownership data unavailable"
-                            : busy
-                              ? "Checking ranked profiles…"
-                              : !owners.length
-                                ? "Load profiles to check ownership"
-                                : "No matches among loaded profiles"
-                        }
-                      />
-                    </article>
-                  </li>
-                ))}
-              </ol>
-              <div
-                className="wishlist-owner-scroll wishlist-desktop-results"
-                tabIndex={0}
-                role="region"
-                aria-label="Wishlist ownership table"
-              >
-                <table className="wishlist-owner-table">
-                  <thead>
-                    <tr>
-                      {(
-                        [
-                          { key: "lock", label: "Wishlist lock" },
-                          { key: "rank", label: "Belt rank" },
-                          { key: "owners", label: "Owners" },
-                          { key: "demand", label: "Wishlist demand" },
-                        ] as const
-                      ).map(({ key, label }) => (
-                        <th
-                          key={key}
-                          scope="col"
-                          aria-sort={
-                            sort.key === key
-                              ? sort.direction === "asc"
-                                ? "ascending"
-                                : "descending"
-                              : "none"
-                          }
-                        >
-                          <button
-                            className="wishlist-sort-button"
-                            type="button"
-                            onClick={() => changeSort(key)}
-                            title={`Sort by ${label.toLowerCase()}`}
-                          >
-                            {label}
-                            <span aria-hidden="true">
-                              {sort.key === key ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}
-                            </span>
-                          </button>
-                        </th>
-                      ))}
-                      <th scope="col">Top-{TOP_OWNER_LIMIT} profiles that own it</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleRows.map(({ lock, owners: matched }) => (
-                      <tr key={`${activeProfile.id}-${lock.id}`}>
-                        <th scope="row">
-                          <a
-                            href={
-                              lock.resourceLinks?.lpu ||
-                              `https://lpubelts.com/locks/${lock.id}.html`
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {lock.name}
-                          </a>
-                          {lock.version && <small>{lock.version}</small>}
-                        </th>
-                        <td>{lock.beltLevel ?? lock.belt}</td>
-                        <td>
-                          {matched.length}
-                          {busy && "…"}
-                        </td>
-                        <td
-                          title={`Published wishlist count; source updated ${insightData.statsUpdatedAt}`}
-                        >
-                          {(insightData.demand[lock.id] ?? 0).toLocaleString("en-US")}
-                        </td>
-                        <td>
-                          <OwnerLinks
-                            matched={matched}
-                            emptyText={
-                              directoryError
-                                ? "Ownership data unavailable"
-                                : busy
-                                  ? "Checking ranked profiles…"
-                                  : !owners.length
-                                    ? "Load profiles to check ownership"
-                                    : "No matches among loaded profiles"
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="wishlist-results-heading">
+                <h3>Wishlist locks</h3>
+                <p>
+                  Owner counts reflect loaded profiles only. Wishlist demand is the published number
+                  of wishlists containing each lock.
+                </p>
               </div>
-              {visibleRows.length < filteredRows.length && (
-                <button
-                  className="secondary-button wishlist-show-more"
-                  onClick={() => setVisibleCount((count) => count + 30)}
-                >
-                  Show {Math.min(30, filteredRows.length - visibleRows.length)} more locks
-                </button>
+              <div className="wishlist-results-controls">
+                <label className="wishlist-search">
+                  Find a lock or owner
+                  <input
+                    type="search"
+                    value={query}
+                    placeholder="Lock, version, belt or owner"
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setVisibleCount(30);
+                    }}
+                  />
+                </label>
+                <label>
+                  Matches
+                  <select
+                    value={matchFilter}
+                    onChange={(event) => {
+                      setMatchFilter(event.target.value);
+                      setVisibleCount(30);
+                    }}
+                  >
+                    <option value="all">All wishlist locks</option>
+                    <option value="matched">With loaded matches</option>
+                    <option value="unmatched">Without loaded matches</option>
+                  </select>
+                </label>
+                <label>
+                  Sort by
+                  <select
+                    value={`${sort.key}:${sort.direction}`}
+                    onChange={(event) => {
+                      const [key, direction] = event.target.value.split(":") as [
+                        WishlistSort["key"],
+                        WishlistSort["direction"],
+                      ];
+                      setSort({ key, direction });
+                      setVisibleCount(30);
+                    }}
+                  >
+                    <option value="lock:asc">Lock: A–Z</option>
+                    <option value="lock:desc">Lock: Z–A</option>
+                    <option value="rank:desc">Rank: highest first</option>
+                    <option value="rank:asc">Rank: lowest first</option>
+                    <option value="owners:desc">Loaded owners: most first</option>
+                    <option value="owners:asc">Loaded owners: fewest first</option>
+                    <option value="demand:desc">Wishlist demand: most first</option>
+                    <option value="demand:asc">Wishlist demand: fewest first</option>
+                  </select>
+                </label>
+              </div>
+              <div className="wishlist-results-meta">
+                <p className="wishlist-result-count" role="status">
+                  Showing {visibleRows.length} of {filteredRows.length} matching wishlist locks
+                  {hasFilters ? ` (${rows.length} total)` : ""}. CSV exports all {rows.length}.
+                </p>
+                {hasFilters && (
+                  <button className="wishlist-clear-filters" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                )}
+              </div>
+              {!filteredRows.length ? (
+                <div className="wishlist-empty-state">
+                  <h3>No locks match these filters</h3>
+                  <p>Try a different lock name, owner, or belt.</p>
+                  <button className="secondary-button" onClick={clearFilters}>
+                    Show all wishlist locks
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <ol className="wishlist-mobile-list" aria-label="Wishlist ownership results">
+                    {visibleRows.map(({ lock, owners: matched }) => (
+                      <li key={lock.id}>
+                        <article className="wishlist-mobile-card">
+                          <div className="wishlist-mobile-heading">
+                            <h3>
+                              <a
+                                href={
+                                  lock.resourceLinks?.lpu ||
+                                  `https://lpubelts.com/locks/${lock.id}.html`
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {lock.name}
+                                <span aria-hidden="true"> ↗</span>
+                              </a>
+                            </h3>
+                          </div>
+                          {lock.version && <p className="wishlist-lock-version">{lock.version}</p>}
+                          <WishlistRank lock={lock} />
+                          <dl className="wishlist-mobile-stats">
+                            <div>
+                              <dt>Loaded owners</dt>
+                              <dd>{ownerCount(matched.length)}</dd>
+                            </div>
+                            <div>
+                              <dt>Wishlist demand</dt>
+                              <dd>{(insightData.demand[lock.id] ?? 0).toLocaleString("en-US")}</dd>
+                            </div>
+                          </dl>
+                          <p className="wishlist-owner-list-label">Owner profiles</p>
+                          <OwnerLinks matched={matched} emptyText={emptyOwnerText} />
+                        </article>
+                      </li>
+                    ))}
+                  </ol>
+                  <div
+                    className="wishlist-owner-scroll wishlist-desktop-results"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Wishlist ownership table"
+                  >
+                    <table className="wishlist-owner-table">
+                      <caption className="wishlist-sr-only">
+                        {activeProfile.name}’s wishlist locks and matches in {owners.length} loaded
+                        owner profiles. All matched owner names are listed.
+                      </caption>
+                      <colgroup>
+                        <col className="wishlist-col-lock" />
+                        <col className="wishlist-col-rank" />
+                        <col className="wishlist-col-number" />
+                        <col className="wishlist-col-demand" />
+                        <col className="wishlist-col-owners" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          {(
+                            [
+                              { key: "lock", label: "Wishlist lock" },
+                              { key: "rank", label: "Belt rank" },
+                              { key: "owners", label: "Loaded owners" },
+                              { key: "demand", label: "Wishlist demand" },
+                            ] as const
+                          ).map(({ key, label }) => (
+                            <th
+                              key={key}
+                              scope="col"
+                              className={
+                                key === "owners" || key === "demand"
+                                  ? "wishlist-numeric"
+                                  : undefined
+                              }
+                              aria-sort={
+                                sort.key === key
+                                  ? sort.direction === "asc"
+                                    ? "ascending"
+                                    : "descending"
+                                  : "none"
+                              }
+                            >
+                              <button
+                                className="wishlist-sort-button"
+                                type="button"
+                                onClick={() => changeSort(key)}
+                                title={`Sort by ${label.toLowerCase()}`}
+                              >
+                                {label}
+                                <span aria-hidden="true">
+                                  {sort.key === key ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}
+                                </span>
+                              </button>
+                            </th>
+                          ))}
+                          <th scope="col">Owner profiles</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleRows.map(({ lock, owners: matched }) => (
+                          <tr key={`${activeProfile.id}-${lock.id}`}>
+                            <th scope="row">
+                              <a
+                                className="wishlist-lock-link"
+                                href={
+                                  lock.resourceLinks?.lpu ||
+                                  `https://lpubelts.com/locks/${lock.id}.html`
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {lock.name}
+                                <span aria-hidden="true"> ↗</span>
+                              </a>
+                              {lock.version && <small>{lock.version}</small>}
+                            </th>
+                            <td>
+                              <WishlistRank lock={lock} />
+                            </td>
+                            <td className="wishlist-numeric">
+                              <span className="wishlist-owner-total">
+                                {ownerCount(matched.length)}
+                              </span>
+                            </td>
+                            <td
+                              className="wishlist-numeric"
+                              title={`Published wishlist count; source updated ${insightData.statsUpdatedAt}`}
+                            >
+                              {(insightData.demand[lock.id] ?? 0).toLocaleString("en-US")}
+                            </td>
+                            <td>
+                              <OwnerLinks matched={matched} emptyText={emptyOwnerText} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {visibleRows.length < filteredRows.length && (
+                    <button
+                      className="secondary-button wishlist-show-more"
+                      onClick={() => setVisibleCount((count) => count + 30)}
+                    >
+                      Show {Math.min(30, filteredRows.length - visibleRows.length)} more locks
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}
-          <p className="wishlist-owner-meta">
-            Coverage is limited to the top {directory?.profiles.length ?? TOP_OWNER_LIMIT} named
-            public leaderboard profiles, not all LPU accounts.
-            {directory && ` Leaderboard updated: ${directory.updatedAt}.`} Ownership is cached in
-            this browser for up to 7 days; use Fetch latest for fresh results. The CSV includes
-            every wishlist lock, all loaded matches, coverage, and individual profile refresh times.
-            Ownership does not imply willingness to sell or trade. Wishlist demand counts published
-            wishlists containing that lock and comes from the community snapshot updated{" "}
-            {insightData.statsUpdatedAt}. It does not start an owner scan.
-          </p>
+          <details className="wishlist-coverage-notes">
+            <summary>About coverage, data freshness &amp; export</summary>
+            <div>
+              <p>
+                Matches cover only the top {directory?.profiles.length ?? TOP_OWNER_LIMIT} named
+                public leaderboard profiles, not every LPU account. Your profile is excluded.
+                Ownership does not imply willingness to sell or trade.
+              </p>
+              <p>
+                Ownership is saved in this browser for up to 7 days. Fetch latest refreshes every
+                ranked profile; Load top {TOP_OWNER_LIMIT} reuses valid saved results. CSV exports
+                every wishlist lock and all loaded matches, regardless of filters, including
+                coverage and each owner’s original fetch time.
+              </p>
+              <dl>
+                <div>
+                  <dt>Leaderboard source updated</dt>
+                  <dd>
+                    <DataTimestamp value={directory?.updatedAt} />
+                  </dd>
+                </div>
+                {directory?.fetchedAt && (
+                  <div>
+                    <dt>Leaderboard fetched</dt>
+                    <dd>
+                      <DataTimestamp value={directory.fetchedAt} />
+                    </dd>
+                  </div>
+                )}
+                <div>
+                  <dt>Wishlist demand source updated</dt>
+                  <dd>
+                    <DataTimestamp value={insightData.statsUpdatedAt} />
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </details>
         </>
       )}
     </section>
   );
 }
 
+function WishlistRank({ lock }: { lock: LockRecord }) {
+  return (
+    <span className="wishlist-rank-label">
+      <i style={{ background: beltColors[lock.belt] }} aria-hidden="true" />
+      {lock.beltLevel ?? lock.belt}
+    </span>
+  );
+}
+
+function OwnerActionIcon({ kind }: { kind: "load" | "refresh" | "export" }) {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {kind === "load" ? (
+        <>
+          <circle cx="9" cy="8" r="3" />
+          <path d="M3 21v-3a6 6 0 0 1 12 0v3M17 5a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-3-5" />
+        </>
+      ) : kind === "refresh" ? (
+        <>
+          <path d="M20 7v5h-5M4 17v-5h5" />
+          <path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1" />
+        </>
+      ) : (
+        <>
+          <path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function OwnerLinks({ matched, emptyText }: { matched: WishlistProfile[]; emptyText: string }) {
   const links = (profiles: WishlistProfile[]) => (
-    <div className="wishlist-owner-links">
+    <ul className="wishlist-owner-links">
       {profiles.map((profile) => (
-        <a
-          key={profile.id}
-          href={profile.url}
-          target="_blank"
-          rel="noreferrer"
-          title={`Profile fetched ${formatActivityTime(profile.refreshedAt)}`}
-        >
-          {profile.name}
-        </a>
+        <li key={profile.id}>
+          <a
+            href={profile.url}
+            target="_blank"
+            rel="noreferrer"
+            title={`Profile fetched ${formatActivityTime(profile.refreshedAt)}`}
+          >
+            <span>{profile.name}</span>
+            <span aria-hidden="true">↗</span>
+          </a>
+        </li>
       ))}
-    </div>
+    </ul>
   );
   return matched.length ? links(matched) : <p className="wishlist-no-match">{emptyText}</p>;
 }
