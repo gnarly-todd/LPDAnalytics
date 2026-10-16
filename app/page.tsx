@@ -750,7 +750,10 @@ function PickingProgressChart() {
       <div className="pick-progress-chart">
         {pickedByBelt.map((item) => (
           <div className="pick-progress-row" key={item.belt}>
-            <span style={{ color: beltColors[item.belt] }}>{item.belt}</span>
+            <span className="rank-text-label">
+              <i style={{ background: beltColors[item.belt] }} aria-hidden="true" />
+              {item.belt}
+            </span>
             <div className="pick-progress-track">
               <i className="owned" style={{ width: `${(item.owned / maxOwned) * 100}%` }} />
               <i className="picked" style={{ width: `${(item.picked / maxOwned) * 100}%` }} />
@@ -904,7 +907,8 @@ function Heatmap() {
         >
           <span />
           {displayBelts.map((belt) => (
-            <strong key={belt} style={{ color: beltColors[belt] }}>
+            <strong key={belt} className="rank-text-label">
+              <i style={{ background: beltColors[belt] }} aria-hidden="true" />
               {belt}
             </strong>
           ))}
@@ -1215,8 +1219,8 @@ function ComparisonPage({
             ))}
             <div className="comparison-table-row">
               <span>Median owned rank</span>
-              <strong style={{ color: beltColors[left.ownedMedian] }}>{left.ownedMedian}</strong>
-              <strong style={{ color: beltColors[right.ownedMedian] }}>{right.ownedMedian}</strong>
+              <strong>{left.ownedMedian}</strong>
+              <strong>{right.ownedMedian}</strong>
             </div>
           </div>
           <div className="comparison-overlap-grid">
@@ -2704,6 +2708,7 @@ function HomeContent() {
                   <label className="search-field">
                     <Icon name="search" />
                     <input
+                      aria-label="Search locks"
                       value={query}
                       onChange={(event) => {
                         setQuery(event.target.value);

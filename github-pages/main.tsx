@@ -4,6 +4,7 @@ import Home from "../app/page";
 import "../app/globals.css";
 import "../app/mobile-usability.css";
 import "../app/screen-navigation.css";
+import "../app/style-consistency.css";
 
 const root = document.getElementById("root");
 
