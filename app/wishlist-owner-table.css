@@ -195,7 +195,7 @@
   padding: 16px 20px;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: var(--surface-soft);
+  background: var(--surface);
   color: var(--muted);
   font-size: 14px;
   line-height: 1.7;
@@ -209,13 +209,6 @@
 }
 .wishlist-unmatched-message .wishlist-unmatched-locks {
   margin-top: 10px;
-}
-.wishlist-unmatched-locks a {
-  display: inline-block;
-  max-width: 100%;
-  padding-block: 4px;
-  color: var(--wishlist-link);
-  text-underline-offset: 3px;
 }
 .wishlist-results-controls label {
   display: grid;

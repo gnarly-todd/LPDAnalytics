@@ -474,20 +474,19 @@ export default function WishlistOwnerTable({
                     These locks are omitted from the results below. Matches cover the {owners.length}
                     {" "}loaded profiles only{busy ? "; this list updates as profiles load" : ""}.
                   </p>
-                  <p className="wishlist-unmatched-locks">
-                    {unmatchedRows.map(({ lock }, index) => (
-                      <span key={lock.id}>
-                        {index > 0 && "; "}
+                  <ul className="wishlist-owner-links wishlist-unmatched-locks" aria-label="Wishlist locks with no matched owners">
+                    {unmatchedRows.map(({ lock }) => (
+                      <li key={lock.id}>
                         <a
                           href={lock.resourceLinks?.lpu || `https://lpubelts.com/locks/${lock.id}.html`}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {lock.name}{lock.version ? ` (${lock.version})` : ""}
+                          {lock.name}
                         </a>
-                      </span>
+                      </li>
                     ))}
-                  </p>
+                  </ul>
                 </div>
               )}
               <div className="wishlist-results-controls">
