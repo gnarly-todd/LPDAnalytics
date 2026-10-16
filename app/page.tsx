@@ -2527,6 +2527,33 @@ function HomeContent() {
                   )}
                 </div>
               </section>
+              <section className="section findings-section" id="findings">
+                <SectionHeading
+                  eyebrow="Collection insights"
+                  title="What the owned data says"
+                  copy="The owned collection is concentrated at Blue Belt and above, while the separate wishlist includes even more higher-ranked locks."
+                />
+                <div className="findings-grid">
+                  <InsightCard
+                    index="01"
+                    title="Higher-ranked owned locks"
+                    copy={`${ownedBluePlus} owned locks are ranked Blue Belt or above, including ${beltCounts.Black} Black Belt locks.`}
+                    stat={`${ownedBluePlus} locks`}
+                  />
+                  <InsightCard
+                    index="02"
+                    title="Pin-tumbler foundation"
+                    copy={`${mechanismCounts[0]?.label ?? "No locking mechanism"} is the most common locking-mechanism label in the owned collection.`}
+                    stat={`${mechanismCounts[0]?.value ?? 0} locks`}
+                  />
+                  <InsightCard
+                    index="03"
+                    title="Higher-ranked wishlist locks"
+                    copy={`${wishlistBluePlus} of ${wishlistLocks.length} wishlist locks are ranked Blue Belt or above.`}
+                    stat={`${wishlistBluePlus} locks`}
+                  />
+                </div>
+              </section>
             </>
           )}
 
@@ -2604,38 +2631,6 @@ function HomeContent() {
                   <a href={LPU_STATS_URL} target="_blank" rel="noreferrer">
                     Open LPU Stats <Icon name="external" size={15} />
                   </a>
-                </div>
-              </section>
-            </>
-          )}
-
-          {screen === "findings" && (
-            <>
-              <section className="section findings-section" id="findings">
-                <SectionHeading
-                  eyebrow="Interpretation"
-                  title="What the owned data says"
-                  copy="The owned collection is concentrated at Blue Belt and above, while the separate wishlist includes even more higher-ranked locks."
-                />
-                <div className="findings-grid">
-                  <InsightCard
-                    index="01"
-                    title="Higher-ranked owned locks"
-                    copy={`${ownedBluePlus} owned locks are ranked Blue Belt or above, including ${beltCounts.Black} Black Belt locks.`}
-                    stat={`${ownedBluePlus} locks`}
-                  />
-                  <InsightCard
-                    index="02"
-                    title="Pin-tumbler foundation"
-                    copy={`${mechanismCounts[0]?.label ?? "No locking mechanism"} is the most common locking-mechanism label in the owned collection.`}
-                    stat={`${mechanismCounts[0]?.value ?? 0} locks`}
-                  />
-                  <InsightCard
-                    index="03"
-                    title="Higher-ranked wishlist locks"
-                    copy={`${wishlistBluePlus} of ${wishlistLocks.length} wishlist locks are ranked Blue Belt or above.`}
-                    stat={`${wishlistBluePlus} locks`}
-                  />
                 </div>
               </section>
             </>

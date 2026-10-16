@@ -12,12 +12,7 @@ export const screens = [
   {
     id: "analysis",
     label: "Collection analysis",
-    description: "Belt ranks, mechanisms, manufacturers, and published LPU collections.",
-  },
-  {
-    id: "findings",
-    label: "Collection insights",
-    description: "The main patterns in your owned and wishlist locks.",
+    description: "Belt ranks, mechanisms, manufacturers, published LPU collections, and insights.",
   },
   {
     id: "community",
@@ -52,6 +47,7 @@ export function screenFromHash(hash: string): ScreenId {
   const key = hash.replace(/^#\/?/, "").split(/[/?]/)[0];
   // Legacy Collection summary links now open Home.
   if (key === "overview") return "home";
+  if (key === "findings") return "analysis";
   return screens.some((item) => item.id === key) ? (key as ScreenId) : "home";
 }
 
@@ -151,7 +147,6 @@ export function ScreenMenu({
       </button>
       {open && (
         <div className="screen-navigation-menu" id="screen-navigation-menu">
-          <p>Explore your collection</p>
           <nav aria-label="Collection screens">
             {screens.map((item) => (
               <a
@@ -174,7 +169,6 @@ export function ScreenMenu({
                 }}
               >
                 <strong>{item.label}</strong>
-                <span>{item.description}</span>
               </a>
             ))}
           </nav>

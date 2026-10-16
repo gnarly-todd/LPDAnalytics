@@ -81,16 +81,15 @@ assert.equal(navigation.screenFromHash("#overview"), "home");
 assert.equal(navigation.screenFromHash("#/overview"), "home");
 const screenIds = navigation.screens.map((screen) => screen.id);
 assert(!screenIds.includes("overview"), "Summary must not have its own menu screen");
-assert(
-  screenIds.indexOf("findings") < screenIds.indexOf("community"),
-  "Insights precede community",
-);
+assert(!screenIds.includes("findings"), "Insights must not have its own menu screen");
+assert.equal(screenIds.length, 7);
+assert.equal(navigation.screenFromHash("#findings"), "analysis");
+assert.equal(navigation.screenFromHash("#/findings"), "analysis");
 const Home = load("app/page.tsx").default;
 const sectionIds = {
   home: "overview",
   analysis: "analysis",
   community: "community",
-  findings: "findings",
   "lpu-insights": "lpu-insights",
   explorer: "explorer",
   "wishlist-owners": "wishlist-owners",
@@ -114,6 +113,11 @@ for (const screen of navigation.screens) {
       screen.id === name,
       `${name} must mount only on its own screen`,
     );
+  assert.equal(html.includes('id="findings"'), screen.id === "analysis");
+  if (screen.id === "analysis") {
+    assert(html.indexOf('id="findings"') > html.indexOf('class="dashboard-grid"'));
+    assert(html.includes("Collection insights"));
+  }
   if (screen.id === "home") {
     assert(html.includes("home-summary-counts"));
     assert(!html.includes("wishlist-mobile-card"));
@@ -127,7 +131,23 @@ for (const screen of navigation.screens) {
   }
 }
 console.log(
-  "PASS: all eight screens render independently; summary and snapshot on home; menu order; no hidden analytics/explorer/owner sections; old and new deep links; comparison picker; zero render-time network calls.",
+  "PASS: all seven screens render independently; summary on home; insights below analysis; legacy links; no hidden analytics/explorer/owner sections; old and new deep links; comparison picker; zero render-time network calls.",
+);
+const menuNavigation = loader({
+  ...React,
+  useState: (initial) => React.useState(initial === false ? true : initial),
+})("app/screen-navigation.tsx");
+const menuHtml = renderToStaticMarkup(
+  React.createElement(menuNavigation.ScreenMenu, {
+    current: "analysis",
+    onNavigate() {},
+  }),
+);
+assert.equal((menuHtml.match(/href="#\//g) ?? []).length, 7);
+assert(!menuHtml.includes('href="#/findings"'));
+assert(menuHtml.includes('aria-current="page"'));
+console.log(
+  "PASS: open menu includes every destination exactly once, with the current screen marked.",
 );
 chosenScreen = "home";
 for (const phase of ["idle", "loading", "idle", "loading", "error", "idle"]) {

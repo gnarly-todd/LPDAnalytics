@@ -101,31 +101,24 @@
   z-index: 85;
   right: 0;
   top: calc(100% + 10px);
-  width: min(380px, calc(100vw - 32px));
-  max-height: calc(100dvh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 10px;
+  width: min(520px, calc(100vw - 32px));
+  padding: 8px;
   border: 1px solid var(--line-strong);
   border-radius: 16px;
   background: var(--surface-strong);
   box-shadow: var(--shadow);
 }
-.screen-navigation-menu > p {
-  margin: 8px 10px 12px;
-  color: var(--muted);
-  font-size: 12px;
-}
 .screen-navigation-menu nav {
   display: grid;
-  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
 .screen-navigation-menu a {
   display: grid;
-  gap: 4px;
+  align-content: center;
   min-width: 0;
-  min-height: 54px;
-  padding: 12px;
+  min-height: 48px;
+  padding: 10px;
   border: 1px solid transparent;
   border-radius: 10px;
   color: var(--text);
@@ -142,11 +135,6 @@
   font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
-}
-.screen-navigation-menu a span {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .screen-heading {
@@ -302,11 +290,7 @@
   .screen-navigation-menu {
     top: calc(100% + 4px);
     right: 0;
-    width: min(380px, 100%);
-    max-height: calc(100dvh - 92px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  }
-  .screen-navigation-menu a {
-    min-height: 58px;
+    width: min(520px, 100%);
   }
   .screen-menu-button {
     padding-inline: 10px;
@@ -360,5 +344,16 @@
   }
   .site-shell .app-navigation .profile-button span {
     max-width: 70px;
+  }
+}
+
+/* Keep all seven destinations visible on short landscape viewports too. */
+@media (max-height: 480px) {
+  .screen-navigation-menu nav {
+    gap: 4px;
+  }
+  .screen-navigation-menu a {
+    min-height: 44px;
+    padding: 8px;
   }
 }
