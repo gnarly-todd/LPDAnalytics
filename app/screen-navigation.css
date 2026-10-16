@@ -1,3 +1,7 @@
+.site-shell h1#screen-title[tabindex="-1"]:focus {
+  outline: none;
+}
+
 .site-shell .site-nav.app-navigation {
   grid-template-columns: minmax(0, 1fr) auto;
   height: auto;
