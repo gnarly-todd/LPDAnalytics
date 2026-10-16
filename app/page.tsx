@@ -2310,9 +2310,7 @@ function HomeContent() {
               onNavigate={navigate}
             />
           )}
-          {screen !== "home" && screen !== "overview" && (
-            <ScreenHeading screen={screen} onNavigate={navigate} />
-          )}
+          {screen !== "home" && <ScreenHeading screen={screen} onNavigate={navigate} />}
           {screen === "compare" && (
             <section className="compare-profile-screen" aria-label="Choose profiles to compare">
               <h2>Select two profiles</h2>
@@ -2357,20 +2355,18 @@ function HomeContent() {
             </section>
           )}
 
-          {screen === "overview" && (
+          {screen === "home" && (
             <>
-              <header className="hero" id="top">
+              <section
+                className="home-collection-summary"
+                aria-labelledby="collection-summary-title"
+              >
                 <div className="hero-copy">
-                  <div className="status-chip">
-                    <i /> Profile data fetched · <DataTimestamp value={displayedSnapshotDate} />
-                  </div>
-                  <p className="eyebrow">Lock Pickers United collection profile</p>
-                  <h1 id="screen-title" tabIndex={-1}>
-                    {profile.name}’s collection overview
-                  </h1>
+                  <p className="eyebrow">Collection summary</p>
+                  <h2 id="collection-summary-title">Your collection at a glance</h2>
                   <p className="hero-lede">
-                    A summary of {profile.name}’s LPU profile: {ownedLocks.length} owned locks
-                    analyzed, with {wishlistLocks.length} wishlist locks tracked separately.
+                    Explore your collection’s belt ranks and mechanisms, or draw an owned lock for
+                    your next picking challenge.
                   </p>
                   <div className="hero-actions">
                     <button className="primary-button" onClick={jumpToExplorer}>
@@ -2398,7 +2394,7 @@ function HomeContent() {
                   </div>
                 </div>
                 <CollectionSnapshot />
-              </header>
+              </section>
 
               {surprise && (
                 <aside

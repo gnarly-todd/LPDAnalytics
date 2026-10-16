@@ -77,9 +77,17 @@ for (const screen of navigation.screens) {
 }
 assert.equal(navigation.screenFromHash("#top"), "home");
 assert.equal(navigation.screenFromHash("#/invalid-route"), "home");
+assert.equal(navigation.screenFromHash("#overview"), "home");
+assert.equal(navigation.screenFromHash("#/overview"), "home");
+const screenIds = navigation.screens.map((screen) => screen.id);
+assert(!screenIds.includes("overview"), "Summary must not have its own menu screen");
+assert(
+  screenIds.indexOf("findings") < screenIds.indexOf("community"),
+  "Insights precede community",
+);
 const Home = load("app/page.tsx").default;
 const sectionIds = {
-  overview: "overview",
+  home: "overview",
   analysis: "analysis",
   community: "community",
   findings: "findings",
@@ -109,7 +117,9 @@ for (const screen of navigation.screens) {
   if (screen.id === "home") {
     assert(html.includes("home-summary-counts"));
     assert(!html.includes("wishlist-mobile-card"));
-    assert(!html.includes("snapshot-visual"));
+    assert(html.includes("snapshot-visual"));
+    assert(html.includes("Find a challenge"));
+    assert(html.includes("collection-summary-title"));
   }
   if (screen.id === "compare") {
     assert(html.includes("Select two profiles"));
@@ -117,7 +127,7 @@ for (const screen of navigation.screens) {
   }
 }
 console.log(
-  "PASS: all nine screens render independently; compact home; no hidden analytics/explorer/owner sections; old and new deep links; comparison picker; zero render-time network calls.",
+  "PASS: all eight screens render independently; summary and snapshot on home; menu order; no hidden analytics/explorer/owner sections; old and new deep links; comparison picker; zero render-time network calls.",
 );
 chosenScreen = "home";
 for (const phase of ["idle", "loading", "idle", "loading", "error", "idle"]) {

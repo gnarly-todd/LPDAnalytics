@@ -4,11 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { DataTimestamp } from "./activity-status";
 
 export const screens = [
-  { id: "home", label: "Home", description: "Introduction and collection totals." },
   {
-    id: "overview",
-    label: "Collection summary",
-    description: "Collection snapshot, rank highlights, and a challenge to pick.",
+    id: "home",
+    label: "Home",
+    description: "Introduction, collection summary, and a challenge to pick.",
   },
   {
     id: "analysis",
@@ -16,14 +15,14 @@ export const screens = [
     description: "Belt ranks, mechanisms, manufacturers, and published LPU collections.",
   },
   {
-    id: "community",
-    label: "Community & picking",
-    description: "Picking progress and comparisons with the LPU community.",
-  },
-  {
     id: "findings",
     label: "Collection insights",
     description: "The main patterns in your owned and wishlist locks.",
+  },
+  {
+    id: "community",
+    label: "Community & picking",
+    description: "Picking progress and comparisons with the LPU community.",
   },
   {
     id: "lpu-insights",
@@ -51,6 +50,8 @@ export type NavigateScreen = (screen: ScreenId) => void;
 
 export function screenFromHash(hash: string): ScreenId {
   const key = hash.replace(/^#\/?/, "").split(/[/?]/)[0];
+  // Legacy Collection summary links now open Home.
+  if (key === "overview") return "home";
   return screens.some((item) => item.id === key) ? (key as ScreenId) : "home";
 }
 
