@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { beltColors, type LockRecord } from "./data";
 import { useCommunityInsights } from "./community-insights";
+import { wishlistOwnersWorkbook } from "./wishlist-owner-export";
 import {
   ActivityStatus,
   DataTimestamp,
@@ -21,7 +22,6 @@ import {
 } from "./top-owner-profiles";
 import {
   matchWishlistOwners,
-  wishlistOwnersCsv,
   sortWishlistRows,
   type WishlistSort,
   type WishlistProfile,
@@ -44,6 +44,7 @@ export default function WishlistOwnerTable({
   const scanController = useRef<AbortController | null>(null);
   const [directory, setDirectory] = useState<TopOwnerDirectory | null>(null);
   const [directoryError, setDirectoryError] = useState("");
+  const [exportError, setExportError] = useState("");
   const [loaded, setLoaded] = useState<WishlistProfile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -195,6 +196,7 @@ export default function WishlistOwnerTable({
   useEffect(() => {
     setVisibleCount(30);
     setQuery("");
+    setExportError("");
   }, [activeProfile.id]);
   const changeSort = (key: WishlistSort["key"]) => {
     setVisibleCount(30);
@@ -218,24 +220,34 @@ export default function WishlistOwnerTable({
   };
   const exportSpreadsheet = () => {
     if (loading || !directory) return;
-    const csv = wishlistOwnersCsv(
-      activeProfile,
-      owners,
-      members.length,
-      failed.map((p) => p.name),
-      `Top ${TOP_OWNER_LIMIT} named public profiles by owned-lock count`,
-      directory.updatedAt,
-      sort,
-      { counts: insightData.demand, updatedAt: insightData.statsUpdatedAt },
-    );
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${activeProfile.name.replace(/[^a-z0-9]+/gi, "-") || "profile"}-wishlist-owners.csv`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    setExportError("");
+    try {
+      const bytes = wishlistOwnersWorkbook(activeProfile, owners, {
+        totalProfiles: members.length,
+        failedNames: failed.map((p) => p.name),
+        searchScope: `Top ${TOP_OWNER_LIMIT} other named public profiles by owned-lock count`,
+        leaderboardUpdatedAt: directory.updatedAt,
+        demand: { counts: insightData.demand, updatedAt: insightData.statsUpdatedAt },
+      });
+      const url = URL.createObjectURL(
+        new Blob([bytes], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      );
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${activeProfile.name.replace(/[^a-z0-9]+/gi, "-") || "profile"}-wishlist-tracker.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    } catch (reason) {
+      setExportError(
+        reason instanceof Error
+          ? reason.message
+          : "The Excel export could not be created. Please try again.",
+      );
+    }
   };
 
   const blocked = busy || loading || paused || resumeAt > Date.now() || !rows.length;
@@ -280,9 +292,9 @@ export default function WishlistOwnerTable({
         <p className="eyebrow">Wishlist connections</p>
         <h2 id="wishlist-owner-heading">{activeProfile.name}’s wishlist</h2>
         <p>
-          Find locks owned by the top {TOP_OWNER_LIMIT} other named public LPU collections. If
-          your profile is in the top {TOP_OWNER_LIMIT}, the next ranked profile fills its spot.
-          Select an owner’s name to visit their LPU profile.
+          Find locks owned by the top {TOP_OWNER_LIMIT} other named public LPU collections. If your
+          profile is in the top {TOP_OWNER_LIMIT}, the next ranked profile fills its spot. Select an
+          owner’s name to visit their LPU profile.
         </p>
       </header>
 
@@ -292,8 +304,8 @@ export default function WishlistOwnerTable({
           <span className="wishlist-scope-badge">Manual refresh · 7-day cache</span>
         </div>
         <p className="wishlist-scan-help">
-          Load top {TOP_OWNER_LIMIT} — cache first reuses profiles saved on this device for up to
-          7 days, fetching only missing or expired profiles from LPU Belts. Fetch latest from LPU
+          Load top {TOP_OWNER_LIMIT} — cache first reuses profiles saved on this device for up to 7
+          days, fetching only missing or expired profiles from LPU Belts. Fetch latest from LPU
           Belts requests fresh data for every profile. Opening this screen only reads the cache.
         </p>
         <div className="wishlist-owner-toolbar">
@@ -332,12 +344,17 @@ export default function WishlistOwnerTable({
             className="secondary-button wishlist-export"
             onClick={exportSpreadsheet}
             disabled={loading || !rows.length || !directory}
-            title="Export every wishlist lock and all currently loaded owner matches, regardless of filters"
+            title="Download a formatted Excel tracker with Wishlist and Owner matches sheets, including every wishlist lock"
           >
             <OwnerActionIcon kind="export" />
-            Export all CSV
+            Export Excel
           </button>
         </div>
+        {exportError && (
+          <p className="wishlist-owner-warning" role="alert">
+            {exportError}
+          </p>
+        )}
         <p className="wishlist-scan-state" role="status">
           <span className={`wishlist-state-dot ${busy ? "is-busy" : ""}`} aria-hidden="true" />
           {stateLabel}
@@ -468,17 +485,24 @@ export default function WishlistOwnerTable({
                 <div className="wishlist-unmatched-message">
                   <p>
                     <strong>
-                      {unmatchedRows.length} wishlist {unmatchedRows.length === 1 ? "lock has" : "locks have"} no
+                      {unmatchedRows.length} wishlist{" "}
+                      {unmatchedRows.length === 1 ? "lock has" : "locks have"} no
                       {busy ? " matches so far" : " matched owners"}.
                     </strong>{" "}
-                    These locks are omitted from the results below. Matches cover the {owners.length}
-                    {" "}loaded profiles only{busy ? "; this list updates as profiles load" : ""}.
+                    These locks are omitted from the results below. Matches cover the{" "}
+                    {owners.length} loaded profiles only
+                    {busy ? "; this list updates as profiles load" : ""}.
                   </p>
-                  <ul className="wishlist-owner-links wishlist-unmatched-locks" aria-label="Wishlist locks with no matched owners">
+                  <ul
+                    className="wishlist-owner-links wishlist-unmatched-locks"
+                    aria-label="Wishlist locks with no matched owners"
+                  >
                     {unmatchedRows.map(({ lock }) => (
                       <li key={lock.id}>
                         <a
-                          href={lock.resourceLinks?.lpu || `https://lpubelts.com/locks/${lock.id}.html`}
+                          href={
+                            lock.resourceLinks?.lpu || `https://lpubelts.com/locks/${lock.id}.html`
+                          }
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -529,7 +553,8 @@ export default function WishlistOwnerTable({
               <div className="wishlist-results-meta">
                 <p className="wishlist-result-count" role="status">
                   Showing {visibleRows.length} of {filteredRows.length} wishlist locks with owners
-                  {hasFilters ? ` (${matchedLockCount} before search)` : ""}. CSV exports all {rows.length}.
+                  {hasFilters ? ` (${matchedLockCount} before search)` : ""}. Excel exports all{" "}
+                  {rows.length}.
                 </p>
                 {hasFilters && (
                   <button className="wishlist-clear-filters" onClick={clearFilters}>
@@ -539,8 +564,16 @@ export default function WishlistOwnerTable({
               </div>
               {!filteredRows.length ? (
                 <div className="wishlist-empty-state">
-                  <h3>{hasFilters ? "No locks match this search" : owners.length ? "No matched owners yet" : "Load owner profiles to find matches"}</h3>
-                  <p>{hasFilters ? "Try a different lock name, owner, or belt." : emptyOwnerText}</p>
+                  <h3>
+                    {hasFilters
+                      ? "No locks match this search"
+                      : owners.length
+                        ? "No matched owners yet"
+                        : "Load owner profiles to find matches"}
+                  </h3>
+                  <p>
+                    {hasFilters ? "Try a different lock name, owner, or belt." : emptyOwnerText}
+                  </p>
                   {hasFilters && (
                     <button className="secondary-button" onClick={clearFilters}>
                       Show all matched locks
@@ -704,14 +737,14 @@ export default function WishlistOwnerTable({
               <p>
                 Matches cover only the top {directory ? members.length : TOP_OWNER_LIMIT} other
                 named public leaderboard profiles, not every LPU account. Your profile is excluded
-                before selecting the {TOP_OWNER_LIMIT} profiles to check.
-                Ownership does not imply willingness to sell or trade.
+                before selecting the {TOP_OWNER_LIMIT} profiles to check. Ownership does not imply
+                willingness to sell or trade.
               </p>
               <p>
                 Ownership is saved in this browser for up to 7 days. Fetch latest from LPU Belts
                 refreshes every ranked profile; Load top {TOP_OWNER_LIMIT} — cache first reuses
-                valid saved results and fetches missing or expired profiles from LPU Belts. CSV exports
-                every wishlist lock and all loaded matches, regardless of filters, including
+                valid saved results and fetches missing or expired profiles from LPU Belts. Excel
+                exports every wishlist lock and all loaded matches, regardless of filters, including
                 coverage and each owner’s original fetch time.
               </p>
               <dl>

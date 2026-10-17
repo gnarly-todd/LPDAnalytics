@@ -6,6 +6,7 @@ const vm = require("node:vm");
 const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
+const { unzipSync, strFromU8 } = require("fflate");
 const root = path.resolve(__dirname, "..");
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const profiles = Array.from({ length: 50 }, (_, n) => ({
@@ -15,8 +16,10 @@ const profiles = Array.from({ length: 50 }, (_, n) => ({
   ownedCount: 1000 - n,
 }));
 const reserveProfile = {
-  id: "public-profile-id-050", name: "Owner 50",
-  url: "https://lpubelts.com/#/profile/public-profile-id-050", ownedCount: 950,
+  id: "public-profile-id-050",
+  name: "Owner 50",
+  url: "https://lpubelts.com/#/profile/public-profile-id-050",
+  ownedCount: 950,
 };
 function storage() {
   const values = new Map();
@@ -42,7 +45,11 @@ function environment(hooks) {
     if (!url.includes("/services/api/")) {
       env.directoryCalls++;
       return Response.json({
-        data: [...profiles, reserveProfile].map((p) => ({ id: p.id, displayName: p.name, own: p.ownedCount })),
+        data: [...profiles, reserveProfile].map((p) => ({
+          id: p.id,
+          displayName: p.name,
+          own: p.ownedCount,
+        })),
         metadata: { updatedDateTime: "2026-10-16" },
       });
     }
@@ -58,7 +65,9 @@ function environment(hooks) {
         data: {
           userId: id,
           displayName: `Owner ${id.slice(-3)}`,
-          collections: { own: ["wanted-lock", id, ...Array.from({ length: 64 }, (_, n) => `lock-${n + 1}`)] },
+          collections: {
+            own: ["wanted-lock", id, ...Array.from({ length: 64 }, (_, n) => `lock-${n + 1}`)],
+          },
         },
       });
     } finally {
@@ -86,6 +95,7 @@ function environment(hooks) {
   const cache = new Map();
   env.load = (name) => {
     const file = path.resolve(root, name);
+    if (file.endsWith(".json")) return JSON.parse(fs.readFileSync(file, "utf8"));
     if (cache.has(file)) return cache.get(file).exports;
     const module = { exports: {} };
     cache.set(file, module);
@@ -144,23 +154,50 @@ async function queueChecks() {
   const env = environment();
   const api = env.load("app/top-owner-profiles.ts");
   assert.equal(api.TOP_OWNER_LIMIT, 50);
-  const ranked = api.selectTopOwners({ data: [
-    ...[...profiles, reserveProfile].reverse().map((p) => ({ id: p.id, displayName: p.name, own: p.ownedCount })),
-    { id: "outside-top-fifty-profile", displayName: "Below cutoff", own: 1 },
-    { id: "anonymous-profile-id-000", displayName: "No display name", own: 2000 },
-  ] });
-  assert.deepEqual(Array.from(ranked.profiles, (p) => p.id), [...profiles, reserveProfile].map((p) => p.id));
-  for (const activeId of [profiles[0].id, profiles[49].id, reserveProfile.id, "outside-top-fifty-profile"]) {
+  const ranked = api.selectTopOwners({
+    data: [
+      ...[...profiles, reserveProfile]
+        .reverse()
+        .map((p) => ({ id: p.id, displayName: p.name, own: p.ownedCount })),
+      { id: "outside-top-fifty-profile", displayName: "Below cutoff", own: 1 },
+      { id: "anonymous-profile-id-000", displayName: "No display name", own: 2000 },
+    ],
+  });
+  assert.deepEqual(
+    Array.from(ranked.profiles, (p) => p.id),
+    [...profiles, reserveProfile].map((p) => p.id),
+  );
+  for (const activeId of [
+    profiles[0].id,
+    profiles[49].id,
+    reserveProfile.id,
+    "outside-top-fifty-profile",
+  ]) {
     const candidates = api.selectOwnerCandidates(ranked.profiles, activeId);
     assert.equal(candidates.length, 50, "Always select 50 other profiles");
     assert(!candidates.some((p) => p.id === activeId), "Never include the active profile");
     assert.equal(new Set(candidates.map((p) => p.id)).size, 50);
-    assert.deepEqual(Array.from(candidates, (p) => p.id), [...profiles, reserveProfile].filter((p) => p.id !== activeId).slice(0, 50).map((p) => p.id));
+    assert.deepEqual(
+      Array.from(candidates, (p) => p.id),
+      [...profiles, reserveProfile]
+        .filter((p) => p.id !== activeId)
+        .slice(0, 50)
+        .map((p) => p.id),
+    );
   }
-  env.window.localStorage.setItem("lpu-owner-directory-v2", JSON.stringify({
-    profiles: profiles, updatedAt: "2026-10-16", fetchedAt: Date.now(),
-  }));
-  assert.equal(api.readOwnerDirectory(), null, "Old directories without the 51st profile must be refreshed");
+  env.window.localStorage.setItem(
+    "lpu-owner-directory-v2",
+    JSON.stringify({
+      profiles: profiles,
+      updatedAt: "2026-10-16",
+      fetchedAt: Date.now(),
+    }),
+  );
+  assert.equal(
+    api.readOwnerDirectory(),
+    null,
+    "Old directories without the 51st profile must be refreshed",
+  );
   const directory = await api.fetchTopOwners();
   assert.equal(directory.profiles.length, 51);
   assert.equal(api.readOwnerDirectory().profiles.length, 51, "Cache retains the reserve profile");
@@ -211,9 +248,13 @@ async function queueChecks() {
   // Top 50 fits even after recent interactive requests; the local cap still stops more work.
   const budgetEnv = environment();
   const budgetApi = budgetEnv.load("app/top-owner-profiles.ts");
-  budgetEnv.window.localStorage.setItem("lpu-request-budget-v1", JSON.stringify({
-    retryAt: 0, attempts: Array.from({ length: 10 }, () => Date.now()),
-  }));
+  budgetEnv.window.localStorage.setItem(
+    "lpu-request-budget-v1",
+    JSON.stringify({
+      retryAt: 0,
+      attempts: Array.from({ length: 10 }, () => Date.now()),
+    }),
+  );
   const fullScan = await budgetApi.loadOwnerSnapshots(profiles);
   assert.equal(fullScan.fresh, 50);
   assert(!fullScan.rateLimit);
@@ -338,7 +379,10 @@ async function componentChecks() {
   assert.equal(env.calls + env.directoryCalls, 0);
   let html = renderToStaticMarkup(tree);
   assert.equal((html.match(/class="wishlist-mobile-card"/g) ?? []).length, 0);
-  assert(!html.includes("wishlist-unmatched-message"), "Unloaded locks must not be classified as unmatched");
+  assert(
+    !html.includes("wishlist-unmatched-message"),
+    "Unloaded locks must not be classified as unmatched",
+  );
   const button = (label) =>
     nodes(tree).find((node) => node.type === "button" && text(node) === label);
   async function finishScan() {
@@ -350,7 +394,7 @@ async function componentChecks() {
     } while (Date.now() < deadline);
     throw new Error("Owner scan did not finish within the test deadline");
   }
-  assert(button("Export all CSV").props.disabled);
+  assert(button("Export Excel").props.disabled);
   assert(!html.includes("wishlist-owner-warning"), "Routine instructions are not warnings");
   assert(html.includes("Not checked yet"), "Unloaded results must not imply zero owners");
   button("Load top 50 — cache first").props.onClick();
@@ -364,16 +408,29 @@ async function componentChecks() {
   assert.equal(env.directoryCalls, 1);
   html = renderToStaticMarkup(tree);
   assert(html.includes("Owner 049"), "All fifty matched owner names must be rendered");
-  const unmatchedMessage = nodes(tree).find((node) => node.props?.className === "wishlist-unmatched-message");
+  const unmatchedMessage = nodes(tree).find(
+    (node) => node.props?.className === "wishlist-unmatched-message",
+  );
   const unmatchedHtml = renderToStaticMarkup(unmatchedMessage);
   assert(unmatchedHtml.includes("165 wishlist locks have no matched owners"));
   assert(unmatchedHtml.includes("Lock 229") && !unmatchedHtml.includes("Lock 000"));
-  assert(html.indexOf("wishlist-unmatched-message") < html.indexOf("wishlist-owner-table"), "Unmatched locks are listed above the table");
-  for (const node of nodes(tree).filter((node) => node.props?.className === "wishlist-mobile-card" || node.type === "tbody")) {
-    assert(!renderToStaticMarkup(node).includes("Lock 229"), "Unmatched locks never appear in desktop rows or mobile cards");
+  assert(
+    html.indexOf("wishlist-unmatched-message") < html.indexOf("wishlist-owner-table"),
+    "Unmatched locks are listed above the table",
+  );
+  for (const node of nodes(tree).filter(
+    (node) => node.props?.className === "wishlist-mobile-card" || node.type === "tbody",
+  )) {
+    assert(
+      !renderToStaticMarkup(node).includes("Lock 229"),
+      "Unmatched locks never appear in desktop rows or mobile cards",
+    );
   }
   assert(!html.includes("Without loaded matches"), "Unmatched-table filter is removed");
-  assert(html.includes("0 loaded from cache · 50 fetched from LPU Belts"), "Fresh results identify their LPU source after completion");
+  assert(
+    html.includes("0 loaded from cache · 50 fetched from LPU Belts"),
+    "Fresh results identify their LPU source after completion",
+  );
   assert(!/Show \d+ more owners/.test(html), "Owner names must not be collapsed");
   assert(
     html.includes("Wishlist owner scan") && html.includes("Started") && html.includes("Finished"),
@@ -385,22 +442,31 @@ async function componentChecks() {
   await wait(20);
   tree = render();
   assert.equal(env.calls, calls);
-  assert(renderToStaticMarkup(tree).includes("50 loaded from cache · 0 fetched from LPU Belts"), "Cached results identify their source without new requests");
+  assert(
+    renderToStaticMarkup(tree).includes("50 loaded from cache · 0 fetched from LPU Belts"),
+    "Cached results identify their source without new requests",
+  );
   const search = nodes(tree).find((node) => node.type === "input" && node.props.type === "search");
   search.props.onChange({ target: { value: "Lock 000" } });
   tree = render();
   html = renderToStaticMarkup(tree);
   assert.equal((html.match(/class="wishlist-mobile-card"/g) ?? []).length, 1);
-  assert(html.includes("CSV exports all 230"));
+  assert(html.includes("Excel exports all 230"));
   assert.equal(env.calls, calls);
-  button("Export all CSV").props.onClick();
-  const csv = await env.exports.at(-1).text();
+  button("Export Excel").props.onClick();
+  const workbookFiles = unzipSync(new Uint8Array(await env.exports.at(-1).arrayBuffer()));
+  const wishlistXml = strFromU8(workbookFiles["xl/worksheets/sheet1.xml"]);
+  const matchesXml = strFromU8(workbookFiles["xl/worksheets/sheet2.xml"]);
   assert(
-    csv.includes("Lock 229") && csv.includes("Owner 049"),
-    "Export keeps all locks and owners despite filters",
+    wishlistXml.includes("Lock 229") && matchesXml.includes("Owner 049"),
+    "Excel keeps every lock and owner despite filters",
   );
-  assert.equal(csv.split("\r\n").length, 3416);
-  assert(env.downloads.at(-1).name.endsWith("-wishlist-owners.csv"));
+  assert.equal(
+    (matchesXml.match(/<row r=/g) ?? []).length,
+    238,
+    "Export groups all owners into one row per lock",
+  );
+  assert(env.downloads.at(-1).name.endsWith("-wishlist-tracker.xlsx"));
   search.props.onChange({ target: { value: "nothing matches this search" } });
   tree = render();
   html = renderToStaticMarkup(tree);
@@ -446,7 +512,7 @@ async function componentChecks() {
   tree = render();
   assert(button("Retry leaderboard"));
   assert(
-    !button("Export all CSV").props.disabled,
+    !button("Export Excel").props.disabled,
     "Previously loaded results can still be exported after a refresh error",
   );
   assert(renderToStaticMarkup(tree).includes("Owner 049"));
@@ -474,19 +540,31 @@ async function componentChecks() {
   tree = render();
   html = renderToStaticMarkup(tree);
   assert.equal(env.calls, beforeReturn, "Returning to an outside profile uses the cache");
-  assert(html.includes("Owner 000") && !html.includes("Owner 050"), "Outside profiles use ranks 1–50");
+  assert(
+    html.includes("Owner 000") && !html.includes("Owner 050"),
+    "Outside profiles use ranks 1–50",
+  );
   assert(html.includes("50 loaded from cache · 0 fetched from LPU Belts"));
   const fullWishlist = activeProfile;
   activeProfile = { ...activeProfile, locks: activeProfile.locks.slice(100, 102) };
   render();
   tree = render();
   html = renderToStaticMarkup(tree);
-  assert(html.includes("2 wishlist locks have no matched owners") && html.includes("No matched owners yet"));
-  assert(!html.includes("wishlist-mobile-card") && !html.includes('class="wishlist-owner-table"'), "All-unmatched wishlists have no results table");
+  assert(
+    html.includes("2 wishlist locks have no matched owners") &&
+      html.includes("No matched owners yet"),
+  );
+  assert(
+    !html.includes("wishlist-mobile-card") && !html.includes('class="wishlist-owner-table"'),
+    "All-unmatched wishlists have no results table",
+  );
   activeProfile = { ...fullWishlist, locks: fullWishlist.locks.slice(0, 2) };
   render();
   tree = render();
-  assert(!renderToStaticMarkup(tree).includes("wishlist-unmatched-message"), "All-matched wishlists have no unmatched message");
+  assert(
+    !renderToStaticMarkup(tree).includes("wishlist-unmatched-message"),
+    "All-matched wishlists have no unmatched message",
+  );
   activeProfile = fullWishlist;
   render();
   tree = render();
@@ -505,7 +583,7 @@ async function componentChecks() {
   assert(html.includes("No wishlist locks yet"));
   assert(button("Load top 50 — cache first").props.disabled);
   console.log(
-    "PASS: page opening makes no requests; manual cache-first/fetch-latest actions; 30-card pagination; clear/search/sort controls; unmatched message outside desktop/mobile results; full CSV export; stop/retry; cached export after refresh failure; loading/empty states.",
+    "PASS: page opening makes no requests; manual cache-first/fetch-latest actions; 30-card pagination; clear/search/sort controls; unmatched message outside desktop/mobile results; formatted Excel export; stop/retry; cached export after refresh failure; loading/empty states.",
   );
 }
 (async () => {
